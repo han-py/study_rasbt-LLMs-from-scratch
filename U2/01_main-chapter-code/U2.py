@@ -28,7 +28,13 @@ all_words = sorted(set(preprocessed))
 
 
 # 代码清单2-2 创建词汇表
-vocab = {token:integer for integer, token in enumerate(all_words)}
+# 添加<unk>标记来处理未知词
+all_tokens = sorted(list(set(preprocessed)))
+all_tokens.extend(["<|endoftext|>","<|unk|>"])  # 添加未知词标记
+vocab = {token:integer for integer, token in enumerate(all_tokens)}
+# print("Total number of unique words:", len(vocab))
+# for i, item in enumerate(list(vocab.items())[-5:]):
+#     print(item)
 # for i, item in enumerate(vocab.items()):
 #     print(item)
 #     if i >= 50:
@@ -125,3 +131,12 @@ class SimpleTokenizerV2:
         text = " ".join([self.int_to_str[i] for i in ids])
         text = re.sub(r'\s+([,.?!"()\'])', r'\1', text)
         return text
+
+# # 测试分词器V2
+# text1 = "Hello, do you like tea?"
+# text2 = "In the sunlit terraces of the palace."
+# text = "<|endoftext|> ".join([text1, text2])
+# print( text)
+# tokenizer = SimpleTokenizerV2(vocab)
+# print(tokenizer.encode(text))
+# print(tokenizer.decode(tokenizer.encode(text)))
