@@ -176,7 +176,36 @@ context_size = 4
 #     desired = enc_sample[i]
 #     print(f"{context} ----> {desired}")
 
-for i in range(1, context_size + 1):
-    context = enc_sample[:i]
-    desired = enc_sample[i]
-    print(tokenizer.decode(context), "---->", tokenizer.decode([desired]))
+# for i in range(1, context_size + 1):
+#     context = enc_sample[:i]
+#     desired = enc_sample[i]
+#     print(tokenizer.decode(context), "---->", tokenizer.decode([desired]))
+
+
+# 代码清单2-5 一个用于批处理输入和目标的数据集
+import torch
+from torch.utils.data import Dataset
+
+class GPTDatasetV1(Dataset):
+    def __init__(self, txt, tokenizer, max_length, stride):
+        self.input_ids = []
+        self.target_ids = []
+
+        # 对全部文本进行分词
+        token_ids = tokenizer.encode(txt)
+        # 使用滑动窗口将文本划分为长度为max_length的重叠序列
+        for i in range(0, len(token_ids) - max_length, stride):
+            input_ids = token_ids[i: i + max_length]
+            target_ids = token_ids[i + 1: i + 1 + max_length]
+            self.input_ids.append(torch.tensor(input_ids))
+            self.target_ids.append(torch.tensor(target_ids))
+
+    # 返回数据集的总行数
+    def __len__(self):
+        return len(self.input_ids)
+
+    # 返回数据集的指定行
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.target_ids[idx]
+
+
