@@ -229,12 +229,21 @@ def create_dataloader_V1(
 with open ("the-verdict.txt", "r", encoding="utf-8") as f:
     raw_text = f.read()
 
+# dataloader = create_dataloader_V1(
+#     raw_text, batch_size = 1, max_length = 4, stride = 1, shuffle = False
+# )
+# # 将dataloader转换为Python迭代器,以通过Python内置的next()函数获取下一个条目
+# data_iter = iter(dataloader)
+# first_batch = next(data_iter)
+# print(first_batch)
+# second_batch = next(data_iter)
+# print(second_batch)
+
 dataloader = create_dataloader_V1(
-    raw_text, batch_size = 1, max_length = 4, stride = 1, shuffle = False
+    raw_text, batch_size = 8, max_length = 4, stride = 4, shuffle = False
 )
 # 将dataloader转换为Python迭代器,以通过Python内置的next()函数获取下一个条目
 data_iter = iter(dataloader)
-first_batch = next(data_iter)
-print(first_batch)
-second_batch = next(data_iter)
-print(second_batch)
+inputs, targets = next(data_iter)
+print("Inputs:\n", inputs)
+print("Targets:\n", targets)
