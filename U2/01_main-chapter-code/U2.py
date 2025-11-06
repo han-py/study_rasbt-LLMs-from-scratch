@@ -146,7 +146,7 @@ import tiktoken
 # print("tiktoken version:", version("tiktoken"))
 
 # 实例化tiktoken中的BPE分词器
-tokenizer = tiktoken.get_encoding("gpt2")
+# tokenizer = tiktoken.get_encoding("gpt2")
 
 # text = (
 #     "Hello, do you like tea? <|endoftext|> In the sunlit terraces of the palace."
@@ -156,13 +156,13 @@ tokenizer = tiktoken.get_encoding("gpt2")
 # strings = tokenizer.decode(integers)
 # print(strings)
 
-with open ("the-verdict.txt", "r", encoding="utf-8") as f:
-    raw_text = f.read()
-
-enc_text = tokenizer.encode(raw_text)
-print("Total number of tokens:", len(enc_text))
-
-enc_sample = enc_text[50:]
+# with open ("the-verdict.txt", "r", encoding="utf-8") as f:
+#     raw_text = f.read()
+#
+# enc_text = tokenizer.encode(raw_text)
+# print("Total number of tokens:", len(enc_text))
+#
+# enc_sample = enc_text[50:]
 
 # 上下文大小决定的输入中包含了多少个词元
 context_size = 4
@@ -225,3 +225,14 @@ def create_dataloader_V1(
         num_workers = num_workers,    # 用于预处理的CPU进程数
     )
     return dataloader
+
+with open ("the-verdict.txt", "r", encoding="utf-8") as f:
+    raw_text = f.read()
+
+dataloader = create_dataloader_V1(
+    raw_text, batch_size = 1, max_length = 4, stride = 1, shuffle = False
+)
+# 将dataloader转换为Python迭代器,以通过Python内置的next()函数获取下一个条目
+data_iter = iter(dataloader)
+first_batch = next(data_iter)
+print(first_batch)
