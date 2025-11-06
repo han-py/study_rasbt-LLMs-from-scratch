@@ -209,3 +209,19 @@ class GPTDatasetV1(Dataset):
         return self.input_ids[idx], self.target_ids[idx]
 
 
+# 代码清单2-6 用于批量生成输入-目标对的数据加载器
+def create_dataloader_V1(
+        txt, batch_size = 4, max_length = 256, stride = 128, shuffle = True, drop_last = True, num_workers = 0
+):
+    # 初始化分词器
+    tokenizer = tiktoken.get_encoding("gpt2")
+    # 创建数据集
+    dataset = GPTDatasetV1(txt, tokenizer, max_length, stride)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size = batch_size,
+        shuffle = shuffle,
+        drop_last = drop_last,    # 如果drop_last为True且批次大小小于指定的batch_size，则会删除最后一批，以防止在训练期间出现损失剧增
+        num_workers = num_workers,    # 用于预处理的CPU进程数
+    )
+    return dataloader
