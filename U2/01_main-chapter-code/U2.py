@@ -140,3 +140,18 @@ class SimpleTokenizerV2:
 # tokenizer = SimpleTokenizerV2(vocab)
 # print(tokenizer.encode(text))
 # print(tokenizer.decode(tokenizer.encode(text)))
+
+from importlib.metadata import version
+import tiktoken
+# print("tiktoken version:", version("tiktoken"))
+
+# 实例化tiktoken中的BPE分词器
+tokenizer = tiktoken.get_encoding("gpt2")
+
+text = (
+    "Hello, do you like tea? <|endoftext|> In the sunlit terraces of the palace."
+)
+integers = tokenizer.encode(text, allowed_special={"<|endoftext|>"})
+print(integers)
+strings = tokenizer.decode(integers)
+print(strings)
