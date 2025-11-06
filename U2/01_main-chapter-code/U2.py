@@ -87,3 +87,13 @@ class SimpleTokenizerV1:
         # 移除标点符号前的空格，使文本更自然
         text = re.sub(r'\s+([,.?!"()\'])', r'\1', text)
         return text
+
+# # 测试分词器
+# tokenizer = SimpleTokenizerV1(vocab)
+# text = """"It's the last he painted, you know,"Mrs.Gisburn said with pardonable pride."""
+# ids = tokenizer.encode(text)
+# print(ids)
+# print(tokenizer.decode(ids))
+# # 如果有训练集之外的新样本，则会报错 KeyError: 'Hello'
+# text = "Hello, do you like tea?"
+# print(tokenizer.encode(text))
