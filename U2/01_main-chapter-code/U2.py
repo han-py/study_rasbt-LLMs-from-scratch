@@ -249,23 +249,48 @@ with open ("the-verdict.txt", "r", encoding="utf-8") as f:
 # print("Targets:\n", targets)
 
 
-input_ids = torch.tensor([2, 3, 5, 1]) # 示例输入ID序列
-vocab_size = 6 # 词汇表大小
-output_dim = 3 # 词向量的输出维度
-# 将随机种子设置为123
-torch.manual_seed(123)
-# 主要组件说明
-# torch.nn.Embedding
-# 这是PyTorch中的嵌入层类
-# 用于将离散的索引（如词汇ID）映射为连续的向量表示
-# 参数含义
-# vocab_size: 词汇表大小，表示有多少个不同的词或token
-# output_dim: 输出维度，即每个词被映射成多少维的向量
-# 功能作用
-# 词嵌入转换: 将输入的整数索引转换为密集向量
-# 可学习参数: 嵌入层内部维护一个形状为 (vocab_size, output_dim) 的权重矩阵
-# 前向传播: 输入索引时，自动查找对应行的向量作为输出
-embedding_layer = torch.nn.Embedding(vocab_size, output_dim)
-# print(embedding_layer.weight)
-# print(embedding_layer(torch.tensor([3]))) # 索引3对应的词向量，即第四行
-print(embedding_layer(input_ids))
+# input_ids = torch.tensor([2, 3, 5, 1]) # 示例输入ID序列
+# vocab_size = 6 # 词汇表大小
+# output_dim = 3 # 词向量的输出维度
+# # 将随机种子设置为123
+# torch.manual_seed(123)
+# # 主要组件说明
+# # torch.nn.Embedding
+# # 这是PyTorch中的嵌入层类
+# # 用于将离散的索引（如词汇ID）映射为连续的向量表示
+# # 参数含义
+# # vocab_size: 词汇表大小，表示有多少个不同的词或token
+# # output_dim: 输出维度，即每个词被映射成多少维的向量
+# # 功能作用
+# # 词嵌入转换: 将输入的整数索引转换为密集向量
+# # 可学习参数: 嵌入层内部维护一个形状为 (vocab_size, output_dim) 的权重矩阵
+# # 前向传播: 输入索引时，自动查找对应行的向量作为输出
+# embedding_layer = torch.nn.Embedding(vocab_size, output_dim)
+# # print(embedding_layer.weight)
+# # print(embedding_layer(torch.tensor([3]))) # 索引3对应的词向量，即第四行
+# print(embedding_layer(input_ids))
+
+
+vocab_size = 50257
+output_dim = 256
+token_embedding_layer = torch.nn.Embedding(vocab_size, output_dim)
+
+max_length = 4
+dataloader = create_dataloader_V1(
+    raw_text, batch_size = 8, max_length = max_length, stride = max_length, shuffle = False
+)
+data_iter = iter(dataloader)
+inputs, targets = next(data_iter)
+# print("Token IDs:\n", inputs)
+# print("\nInput shape:", inputs.shape)
+
+token_embeddings = token_embedding_layer(inputs)
+# print(token_embeddings.shape)
+
+context_length = max_length
+pos_embedding_layer = torch.nn.Embedding(context_length, output_dim)
+pos_embeddings = pos_embedding_layer(torch.arange(context_length))
+# print(pos_embeddings.shape)
+
+input_embeddings = token_embeddings + pos_embeddings
+print(input_embeddings.shape)
