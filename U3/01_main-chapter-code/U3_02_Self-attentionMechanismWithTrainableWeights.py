@@ -52,5 +52,59 @@ keys = inputs @ W_key    # 所有输入词的键向量，形状为(6, 2)
 values = inputs @ W_value # 所有输入词的值向量，形状为(6, 2)
 
 # 打印键向量和值向量的形状，验证计算结果的维度是否正确
-print("key.shape:", keys.shape)     # 应该是 torch.Size([6, 2])，表示6个词，每个词2维
-print("value.shape:", values.shape) # 应该是 torch.Size([6, 2])，表示6个词，每个词2维
+# print("key.shape:", keys.shape)     # 应该是 torch.Size([6, 2])，表示6个词，每个词2维
+# print("value.shape:", values.shape) # 应该是 torch.Size([6, 2])，表示6个词，每个词2维
+
+# 注意：Python从0开始进行检索
+# 获取索引为1的键向量(keys_2)，即"journey"对应的键向量
+keys_2 = keys[1]
+# 计算查询向量query_2和键向量keys_2的点积，得到注意力分数
+# 点积越大表示两个向量越相似，即"journey"对自身的关注度越高
+attn_score_22 = query_2.dot(keys_2)
+# print(attn_score_22)
+
+# 给定query的全部注意力分数
+# 通过矩阵乘法计算query_2与所有键向量(keys.T)的点积，得到注意力分数向量
+# keys.T是keys的转置，形状从(6, 2)变为(2, 6)
+# query_2 @ keys.T的结果形状为(6,)，表示"journey"对序列中每个词的注意力分数
+attn_scores_2 = query_2 @ keys.T
+# print(attn_scores_2)
+
+# 获取键向量的维度，用于缩放注意力分数，防止softmax函数进入饱和区域
+d_k = keys.shape[-1]
+# 对注意力分数进行缩放(除以sqrt(d_k))并应用softmax函数，得到注意力权重
+# 缩放因子sqrt(d_k)有助于在维度较大时保持梯度的稳定性
+# softmax函数将注意力分数转换为概率分布，所有权重之和为1
+# dim=-1表示在最后一个维度上进行softmax操作
+attn_weights_2 = torch.softmax(attn_scores_2 / d_k ** 0.5, dim=-1)
+# print(attn_weights_2)
+
+# 使用注意力权重对值向量进行加权求和，得到最终的上下文向量
+# attn_weights_2形状为(6,)，values形状为(6, 2)
+# 结果context_vec_2形状为(2,)，表示考虑了上下文信息的"journey"词向量表示
+context_vec_2 = attn_weights_2 @ values
+print(context_vec_2)
+
+'''
+总结:
+本代码演示了带可训练权重的自注意力机制的完整计算过程：
+
+1. 输入表示：使用一个6词序列，每个词由3维向量表示
+
+2. 权重矩阵初始化：
+   - W_query (查询权重): 用于计算查询向量(Q)
+   - W_key (键权重): 用于计算键向量(K)
+   - W_value (值权重): 用于计算值向量(V)
+   
+3. 线性变换：
+   - 对输入序列分别应用三个权重矩阵，得到对应的Q、K、V向量
+
+4. 注意力计算流程：
+   - 计算查询向量与所有键向量的点积得到注意力分数
+   - 对注意力分数进行缩放处理(除以sqrt(d_k))
+   - 应用softmax函数将分数转换为概率分布(注意力权重)
+   - 使用注意力权重对值向量进行加权求和得到最终的上下文向量
+
+这种机制允许模型在处理序列数据时，动态地关注输入序列的不同部分，
+从而更好地捕捉词与词之间的依赖关系。
+'''
