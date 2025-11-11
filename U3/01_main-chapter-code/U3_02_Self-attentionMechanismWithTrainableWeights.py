@@ -83,7 +83,7 @@ attn_weights_2 = torch.softmax(attn_scores_2 / d_k ** 0.5, dim=-1)
 # attn_weights_2形状为(6,)，values形状为(6, 2)
 # 结果context_vec_2形状为(2,)，表示考虑了上下文信息的"journey"词向量表示
 context_vec_2 = attn_weights_2 @ values
-print(context_vec_2)
+# print(context_vec_2)
 
 '''
 总结:
@@ -108,3 +108,82 @@ print(context_vec_2)
 这种机制允许模型在处理序列数据时，动态地关注输入序列的不同部分，
 从而更好地捕捉词与词之间的依赖关系。
 '''
+
+# 代码清单 3-1 一个简化的自注意力Python类
+# 定义一个自注意力机制的简化版本，直接使用Parameter来定义权重矩阵
+import torch.nn as nn
+class SelfAttention_V1(nn.Module):
+    # 构造函数，接收输入维度d_in和输出维度d_out作为参数
+    def __init__(self, d_in, d_out):
+        # 调用父类nn.Module的构造函数
+        super().__init__()
+        # 使用Parameter定义查询、键、值的权重矩阵，这些参数会自动注册到模型中
+        # rand函数生成[0,1)区间内的均匀分布随机数，初始化权重矩阵
+        self.W_query = nn.Parameter(torch.rand(d_in, d_out))
+        self.W_key = nn.Parameter(torch.rand(d_in, d_out))
+        self.W_value = nn.Parameter(torch.rand(d_in, d_out))
+
+    # 前向传播函数，接收输入张量x
+    def forward(self, x):
+        # 计算键向量：输入x与键权重矩阵相乘
+        keys = x @ self.W_key
+        # 计算查询向量：输入x与查询权重矩阵相乘
+        queries = x @ self.W_query
+        # 计算值向量：输入x与值权重矩阵相乘
+        values = x @ self.W_value
+        # 计算注意力分数：查询向量与键向量的转置相乘
+        attn_scores = queries @ keys.T
+        # 对注意力分数进行缩放并应用softmax函数得到注意力权重
+        # keys.shape[-1]获取键向量的最后一维大小，即d_out
+        # 除以sqrt(d_k)进行缩放，dim=-1表示在最后一个维度上进行softmax
+        attn_weight = torch.softmax(
+            attn_scores / (keys.shape[-1] ** 0.5), dim=-1
+        )
+        # 使用注意力权重对值向量进行加权求和得到上下文向量
+        context_vec = attn_weight @ values
+        # 返回计算得到的上下文向量
+        return context_vec
+
+# torch.manual_seed(123)
+# sa_v1 = SelfAttention_V1(d_in, d_out)
+# print(sa_v1(inputs))
+
+
+# 代码清单 3-2 一个使用PyTorch线性层的自注意力类
+# 定义另一个自注意力机制版本，使用PyTorch内置的Linear层
+class SelfAttention_V2(nn.Module):
+    # 构造函数，接收输入维度d_in、输出维度d_out和是否使用偏置项qkv_bias作为参数
+    def __init__(self, d_in, d_out, qkv_bias=False):
+        # 调用父类nn.Module的构造函数
+        super().__init__()
+        # 使用PyTorch内置的Linear层定义查询、键、值的线性变换
+        # Linear层会自动创建可学习的权重和偏置参数
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+
+    # 前向传播函数，接收输入张量x
+    def forward(self, x):
+        # 通过Linear层计算键向量
+        keys = self.W_key(x)
+        # 通过Linear层计算查询向量
+        queries = self.W_query(x)
+        # 通过Linear层计算值向量
+        values = self.W_value(x)
+        # 计算注意力分数：查询向量与键向量的转置相乘
+        attn_scores = queries @ keys.T
+        # 对注意力分数进行缩放并应用softmax函数得到注意力权重
+        attn_weight = torch.softmax(
+            attn_scores / (keys.shape[-1] ** 0.5), dim=-1
+        )
+        # 使用注意力权重对值向量进行加权求和得到上下文向量
+        context_vec = attn_weight @ values
+        # 返回计算得到的上下文向量
+        return context_vec
+
+# 设置随机种子以确保结果可重现
+torch.manual_seed(789)
+# 创建SelfAttention_V2实例，传入输入维度和输出维度
+sa_v2 = SelfAttention_V2(d_in, d_out)
+# 对输入数据进行前向传播计算并打印结果
+print(sa_v2(inputs))
