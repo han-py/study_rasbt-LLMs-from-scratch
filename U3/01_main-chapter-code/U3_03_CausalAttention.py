@@ -59,6 +59,7 @@ torch.manual_seed(789)
 # 创建SelfAttention_V2实例，传入输入维度和输出维度
 sa_v2 = SelfAttention_V2(d_in, d_out)
 
+
 '''
 因果注意力的掩码实现
 '''
@@ -120,3 +121,91 @@ dropout = nn.Dropout(p=0.5) # 选择使用50%的dropout率
 
 torch.manual_seed(123)
 # print(dropout(attn_weights))
+
+
+'''
+实现一个简化的因果注意力类
+'''
+batch = torch.stack((inputs, inputs), dim=0)
+# print(batch.shape) # 两个输入，每个输入有6个词元，每个词元的嵌入维度为3
+
+# 代码清单 3-3 一个简化的因果注意力类
+class CausalSelfAttention(nn.Module):
+    '''
+    因果自注意力机制类
+    
+    该类实现了因果注意力机制，确保在处理序列时只能访问当前位置及之前位置的信息，
+    通过上三角掩码防止未来信息泄露。
+    '''
+    
+    def __init__(self, d_in, d_out, context_length, dropout, qkv_bias=False):
+        '''
+        初始化因果自注意力层
+        
+        参数:
+        d_in: 输入维度
+        d_out: 输出维度
+        context_length: 上下文长度（序列长度）
+        dropout: dropout比率
+        qkv_bias: 是否在查询、键、值的线性变换中使用偏置
+        '''
+        super().__init__()
+        # 定义查询、键、值的线性变换层
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+        # 定义dropout层
+        self.dropout = nn.Dropout(dropout)
+
+        # 创建并注册上三角掩码缓冲区，防止未来信息泄露
+        # torch.triu创建上三角矩阵，diagonal=1表示从主对角线上方开始
+        self.register_buffer(
+            "mask",
+            torch.triu(torch.ones(context_length, context_length), diagonal=1)
+        )
+
+    def forward(self, x):
+        '''
+        前向传播函数
+        
+        参数:
+        x: 输入张量，形状为(batch_size, num_tokens, d_in)
+        
+        返回:
+        context_vec: 上下文向量，形状为(batch_size, num_tokens, d_out)
+        '''
+        # 获取输入张量的形状信息
+        b, num_tokens, d_in = x.shape
+        
+        # 计算键、查询、值向量
+        keys = self.W_key(x)
+        queries = self.W_query(x)
+        values = self.W_value(x)
+
+        # 计算注意力分数: 查询向量与键向量的转置相乘
+        # 使用transpose(1, 2)对键向量进行转置操作
+        attn_scores = queries @ keys.transpose(1, 2)
+        
+        # 应用因果掩码，将未来位置的注意力分数设为负无穷
+        # 这样在softmax后这些位置的权重会接近0
+        attn_scores.masked_fill(
+            self.mask.bool()[:num_tokens, :num_tokens],  # 只使用前num_tokens行和列的掩码
+            -torch.inf
+        )
+        
+        # 对注意力分数进行缩放并应用softmax和dropout得到注意力权重
+        attn_weights = self.dropout(torch.softmax(
+            attn_scores / (keys.shape[-1] ** 0.5), dim=-1  # 缩放因子为维度的平方根
+        ))
+
+        # 使用注意力权重对值向量进行加权求和得到上下文向量
+        context_vec = attn_weights @ values
+        return context_vec
+
+torch.manual_seed(123)
+context_length = batch.shape[1]
+# 创建因果自注意力实例
+ca = CausalSelfAttention(d_in, d_out, context_length, dropout=0.0)
+# 对批处理数据应用因果注意力
+context_vecs = ca(batch)
+print("context_vecs.shape:", context_vecs.shape)
