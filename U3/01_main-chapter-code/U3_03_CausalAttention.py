@@ -66,4 +66,8 @@ mask_simple = torch.tril(torch.ones(context_length, context_length))
 # print(mask_simple)
 
 mask_simple *= attn_weights
-print(mask_simple)
+# print(mask_simple)
+
+row_sums = mask_simple.sum(dim=-1, keepdim=True)
+mask_simple_norm = mask_simple / row_sums
+# print(mask_simple_norm)
