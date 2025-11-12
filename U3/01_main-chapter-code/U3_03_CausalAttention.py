@@ -59,6 +59,9 @@ torch.manual_seed(789)
 # 创建SelfAttention_V2实例，传入输入维度和输出维度
 sa_v2 = SelfAttention_V2(d_in, d_out)
 
+'''
+因果注意力的掩码实现
+'''
 # 计算查询和键向量
 queries = sa_v2.W_query(inputs)
 keys = sa_v2.W_key(inputs)
@@ -105,3 +108,15 @@ attn_weights = torch.softmax(
     masked / (keys.shape[-1] ** 0.5), dim=-1
 )
 # print(attn_weights)
+
+
+'''
+利用dropout掩码额外的注意力权重
+'''
+torch.manual_seed(123)
+dropout = nn.Dropout(p=0.5) # 选择使用50%的dropout率
+# example = torch.ones(6, 6) # 在这里创建一个全1矩阵
+# print(dropout(example))
+
+torch.manual_seed(123)
+# print(dropout(attn_weights))
