@@ -60,3 +60,10 @@ attn_weights = torch.softmax(
     attn_scores / (keys.shape[-1] ** 0.5), dim=-1
 )
 # print(attn_weights)
+
+context_length = attn_scores.shape[0]
+mask_simple = torch.tril(torch.ones(context_length, context_length))
+# print(mask_simple)
+
+mask_simple *= attn_weights
+print(mask_simple)
