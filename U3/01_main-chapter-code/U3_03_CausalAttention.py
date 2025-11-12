@@ -71,3 +71,13 @@ mask_simple *= attn_weights
 row_sums = mask_simple.sum(dim=-1, keepdim=True)
 mask_simple_norm = mask_simple / row_sums
 # print(mask_simple_norm)
+
+
+mask = torch.triu(torch.ones(context_length, context_length), diagonal=1)
+masked = attn_scores.masked_fill(mask.bool(), -torch.inf)
+# print(masked)
+
+attn_weights = torch.softmax(
+    masked / (keys.shape[-1] ** 0.5), dim=-1
+)
+print(attn_weights)
