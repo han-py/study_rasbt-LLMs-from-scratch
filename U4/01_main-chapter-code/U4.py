@@ -1,5 +1,7 @@
-import  torch
-import  torch.nn as nn
+import torch
+import torch.nn as nn
+import tiktoken
+
 
 GPT_CONFIG_124M = {
     "vocab_size": 50257,     # 词汇表大小
@@ -13,7 +15,7 @@ GPT_CONFIG_124M = {
 
 
 # 代码清单 4-1 一个包含占位符的GPT模型架构类
-class DummyGPTModel(nn.modules):
+class DummyGPTModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
@@ -37,7 +39,7 @@ class DummyGPTModel(nn.modules):
         batch_size,seq_len = in_dex.shape
         tok_embeds =self.tok_emb(in_dex)
         pos_embeds = self.pos_emb(
-            torch.arrange(seq_len, device = in_dex.device)
+            torch.arange(seq_len, device = in_dex.device)
         )
         x = tok_embeds + pos_embeds
         x = self.drop_emb(x)
@@ -63,3 +65,13 @@ class DummyLayerNorm(nn.Module):
 
     def forward(self, x):
         return x
+
+tokenizer = tiktoken.get_encoding("gpt2")
+batch = []
+txt1 = "Every effort moves you"
+txt2 = "Every day holds a"
+
+batch.append(torch.tensor(tokenizer.encode(txt1)))
+batch.append(torch.tensor(tokenizer.encode(txt2)))
+batch = torch.stack(batch, dim = 0)
+print(batch)
