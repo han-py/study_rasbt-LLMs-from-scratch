@@ -59,7 +59,7 @@ class DummyTransformerBlock(nn.Module):
 class DummyLayerNorm(nn.Module):
     # 这里的参数只是为了模仿层归一化的接口
     def __init__(self, normalized_shape, eps=1e-5,):
-        super.__init__()
+        super().__init__()
 
     def forward(self, x):
         return x
