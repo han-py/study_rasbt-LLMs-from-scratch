@@ -66,6 +66,7 @@ class DummyLayerNorm(nn.Module):
     def forward(self, x):
         return x
 
+
 # tokenizer = tiktoken.get_encoding("gpt2")
 # batch = []
 # txt1 = "Every effort moves you"
@@ -84,12 +85,22 @@ class DummyLayerNorm(nn.Module):
 # # print(logits)
 
 
-torch.manual_seed(123)
-batch_example = torch.randn(2, 5)  # 创建两个训练样本，每个样本包含5个维度
-layer = nn.Sequential(nn.Linear(5,6), nn.ReLU())
-out = layer(batch_example)
-# print(out)
-mean = out.mean(dim=-1, keepdim = True)
-var = out.var(dim=-1, keepdim = True)
-print("Mean:\n", mean)
-print("Var:\n", var)
+# torch.manual_seed(123)
+# batch_example = torch.randn(2, 5)  # 创建两个训练样本，每个样本包含5个维度
+# layer = nn.Sequential(nn.Linear(5,6), nn.ReLU())
+# out = layer(batch_example)
+# # print(out)
+# mean = out.mean(dim=-1, keepdim = True)
+# var = out.var(dim=-1, keepdim = True)
+# # print("Mean:\n", mean)
+# # print("Var:\n", var)
+# out_norm =(out - mean) / torch.sqrt(var)
+# mean = out_norm.mean(dim=-1, keepdim = True)
+# var = out_norm.var(dim=-1, keepdim = True)
+# # print("Normalized layer Outputs:\n", out_norm)
+# # print("Mean:\n", mean)
+# # print("Variance:\n", var)
+# # 为了提高可读性，可以通过将 sci_mode 设置为 False 来关闭科学计数法，从而在打印张量值时避免使用科学记数法
+# torch.set_printoptions(sci_mode=False)
+# print("Mean:\n", mean)
+# print("Variance:\n", var)
