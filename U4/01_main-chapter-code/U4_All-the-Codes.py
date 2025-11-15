@@ -66,18 +66,30 @@ class DummyLayerNorm(nn.Module):
     def forward(self, x):
         return x
 
-tokenizer = tiktoken.get_encoding("gpt2")
-batch = []
-txt1 = "Every effort moves you"
-txt2 = "Every day holds a"
+# tokenizer = tiktoken.get_encoding("gpt2")
+# batch = []
+# txt1 = "Every effort moves you"
+# txt2 = "Every day holds a"
+#
+# batch.append(torch.tensor(tokenizer.encode(txt1)))
+# batch.append(torch.tensor(tokenizer.encode(txt2)))
+# batch = torch.stack(batch, dim = 0)
+# # print(batch)
 
-batch.append(torch.tensor(tokenizer.encode(txt1)))
-batch.append(torch.tensor(tokenizer.encode(txt2)))
-batch = torch.stack(batch, dim = 0)
-# print(batch)
+
+# torch.manual_seed(123)
+# model = DummyGPTModel(GPT_CONFIG_124M)
+# logits = model(batch)
+# # print("Output shape:", logits.shape)
+# # print(logits)
+
 
 torch.manual_seed(123)
-model = DummyGPTModel(GPT_CONFIG_124M)
-logits = model(batch)
-print("Output shape:", logits.shape)
-print(logits)
+batch_example = torch.randn(2, 5)  # 创建两个训练样本，每个样本包含5个维度
+layer = nn.Sequential(nn.Linear(5,6), nn.ReLU())
+out = layer(batch_example)
+# print(out)
+mean = out.mean(dim=-1, keepdim = True)
+var = out.var(dim=-1, keepdim = True)
+print("Mean:\n", mean)
+print("Var:\n", var)
