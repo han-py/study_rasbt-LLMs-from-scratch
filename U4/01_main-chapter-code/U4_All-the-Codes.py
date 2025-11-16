@@ -174,3 +174,12 @@ class FeedForwardNN(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
+
+
+# ffn = FeedForwardNN(GPT_CONFIG_124M)
+# x = torch.rand(2, 3, 768)  # 创建批次维度为 2 的样本输入
+# out = ffn(x)
+# print(out.shape)
+
+
+# 代码清单 4-5 用于演示快捷连接的神经网络
