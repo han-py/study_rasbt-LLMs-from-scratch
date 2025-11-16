@@ -219,3 +219,11 @@ class ExampleDeepNeuralNetwork(nn.Module):
             else:
                 x = layer_output
         return x
+
+
+layer_sizes = [3, 3, 3, 3, 3, 1]
+sample_input = torch.tensor([[1., 0., -1.]])
+torch.manual_seed(123)  # 指定随机种子用于初始化权重，以确保结果可复现
+model_without_shortcut = ExampleDeepNeuralNetwork(
+    layer_sizes, use_shortcut= False
+)
