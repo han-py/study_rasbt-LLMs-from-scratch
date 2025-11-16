@@ -160,3 +160,17 @@ class GELU(nn.Module):
 #     plt.grid(True)
 # plt.tight_layout()
 # plt.show()
+
+
+# 代码清单 4-4 前馈神经网络模块
+class FeedForwardNN(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(cfg["emb_dim"], cfg["emb_dim"] * 4),
+            GELU(),
+            nn.Linear(cfg["emb_dim"] * 4, cfg["emb_dim"]),
+        )
+
+    def forward(self, x):
+        return self.layers(x)
