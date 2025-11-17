@@ -227,3 +227,18 @@ torch.manual_seed(123)  # 指定随机种子用于初始化权重，以确保结
 model_without_shortcut = ExampleDeepNeuralNetwork(
     layer_sizes, use_shortcut= False
 )
+
+
+# 实现一个用于在模型的反向传播过程中计算梯度的函数
+def print_gradients(model, x):
+    output = model(x)  # 前向传播
+    target = torch.tensor([[0.]])
+
+    loss = nn.MSELoss ()
+    loss = loss(output, target)  # 基于目标和输出之间的差距来计算损失
+
+    loss.backward()  # 反向传播来计算梯度
+
+    for name, param in model.named_parameters():
+        if 'weight' in name:
+            print(f"{name} has gradient mean of {param.grad.abs().mean().item()}")
