@@ -242,3 +242,6 @@ def print_gradients(model, x):
     for name, param in model.named_parameters():
         if 'weight' in name:
             print(f"{name} has gradient mean of {param.grad.abs().mean().item()}")
+
+
+print_gradients(model_without_shortcut, sample_input)
