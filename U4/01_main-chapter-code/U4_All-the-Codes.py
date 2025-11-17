@@ -221,12 +221,12 @@ class ExampleDeepNeuralNetwork(nn.Module):
         return x
 
 
-layer_sizes = [3, 3, 3, 3, 3, 1]
-sample_input = torch.tensor([[1., 0., -1.]])
-torch.manual_seed(123)  # 指定随机种子用于初始化权重，以确保结果可复现
-model_without_shortcut = ExampleDeepNeuralNetwork(
-    layer_sizes, use_shortcut= False
-)
+# layer_sizes = [3, 3, 3, 3, 3, 1]
+# sample_input = torch.tensor([[1., 0., -1.]])
+# torch.manual_seed(123)  # 指定随机种子用于初始化权重，以确保结果可复现
+# model_without_shortcut = ExampleDeepNeuralNetwork(
+#     layer_sizes, use_shortcut= False
+# )
 
 
 # 实现一个用于在模型的反向传播过程中计算梯度的函数
@@ -244,4 +244,12 @@ def print_gradients(model, x):
             print(f"{name} has gradient mean of {param.grad.abs().mean().item()}")
 
 
-print_gradients(model_without_shortcut, sample_input)
+# print_gradients(model_without_shortcut, sample_input)
+
+
+# 实例化一个包含跳跃连接的模型，并观察它的比较结果
+layer_sizes = [3, 3, 3, 3, 3, 1]
+sample_input = torch.tensor([[1., 0., -1.]])
+torch.manual_seed(123)
+model_with_shortcut = ExampleDeepNeuralNetwork(layer_sizes, use_shortcut=True)
+print_gradients(model_with_shortcut, sample_input)
