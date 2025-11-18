@@ -439,3 +439,24 @@ def generate_text_simple(model, idx,  # idx 是当前文本的索引数组，其
         idx = torch.cat((idx, idx_next), dim=1)  # 将计算出的下一个字符的索引添加到索引数组中，此时 idx 的形状会变为 (batch, n_tokens + 1)
 
     return  idx
+
+
+start_context = "Hello, I am"
+encoded = tokenizer.encode(start_context)
+# print("encoded:",  encoded)
+encoded_tensor = torch.tensor(encoded).unsqueeze(0)  # 添加 batch 维度
+# print("encoded_tensor.shape:", encoded_tensor.shape)
+
+
+model.eval()  # 不训练模型时关闭 dropout
+out = generate_text_simple(
+    model = model,
+    idx = encoded_tensor,
+    max_new_tokens = 6,
+    context_size = GPT_CONFIG_124M["context_length"],
+)
+# print("Output:", out)
+# print("Output length:", len(out[0]))
+
+decoded_text = tokenizer.decode(out.squeeze(0).tolist())
+print(decoded_text)
