@@ -398,6 +398,16 @@ batch.append(torch.tensor(tokenizer.encode(txt2)))
 batch = torch.stack(batch, dim = 0)
 
 out = model(batch)
-print("Input shape:\n", batch)
-print("Output shape:\n", out.shape)
-print(out)
+# print("Input shape:\n", batch)
+# print("Output shape:\n", out.shape)
+# print(out)
+
+
+torch_params = sum(p.numel() for p in model.parameters())
+# print(f"Total number of parameters: {torch_params:,}")
+
+
+# print("Token embedding layer shape:", model.tok_emb.weight.shape)
+# print("Output layer shape:", model.out_head.weight.shape)
+
+
