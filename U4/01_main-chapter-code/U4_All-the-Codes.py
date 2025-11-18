@@ -384,3 +384,13 @@ class GPTModel(nn.Module):
         x = self.final_norm(x)
         logits = self.out_head(x)
         return logits
+
+
+torch.manual_seed(123)
+model = GPTModel(GPT_CONFIG_124M)
+
+batch = []
+out = model(batch)
+print("Input shape:\n", batch)
+print("Output shape:\n", out.shape)
+print(out)
