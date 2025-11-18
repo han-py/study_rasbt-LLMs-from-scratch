@@ -345,11 +345,42 @@ class TransformerBlock(nn.Module):
         return x
 
 
-torch.manual_seed(123)
-# 创建形状为 [batch_size, num_tokens, emb_dim] 的样例输入
-x = torch.rand(2, 4, 768)
-block = TransformerBlock(GPT_CONFIG_124M)
-output = block(x)
+# torch.manual_seed(123)
+# # 创建形状为 [batch_size, num_tokens, emb_dim] 的样例输入
+# x = torch.rand(2, 4, 768)
+# block = TransformerBlock(GPT_CONFIG_124M)
+# output = block(x)
+#
+# print("Input shape:", x.shape)
+# print("Output shape:", output.shape)
 
-print("Input shape:", x.shape)
-print("Output shape:", output.shape)
+
+# 代码清单 4-7 GPT模型架构的实现
+class GPTModel(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
+        self.pos_emb = nn.Embedding(cfg["context_length"], cfg["emb_dim"])
+        self.drop_emb = nn.Dropout(cfg["drop_rate"])
+
+        self.trf_blocks = nn.Sequential(
+            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])]
+        )
+        self.final_norm = LayerNorm(cfg["emb_dim"])
+        self.out_head = nn.Linear(
+            cfg["emb_dim"], cfg["vocab_size"], bias=False
+        )
+
+    def forward(self, in_dex):
+        batch_size, seq_len = in_dex.shape
+        tok_embeds = self.tok_emb(in_dex)
+
+        pos_embeds = self.pos_emb(
+            torch.arange(seq_len, device=in_dex.device)  # device 的设置允许我们在 CPU 或 GPU 上训练模型，具体取决于输入数据所在的设备
+        )
+        x = tok_embeds + pos_embeds
+        x = self.drop_emb(x)
+        x = self.trf_blocks(x)
+        x = self.final_norm(x)
+        logits = self.out_head(x)
+        return logits
