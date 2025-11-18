@@ -411,15 +411,15 @@ total_params = sum(p.numel() for p in model.parameters())
 # print("Output layer shape:", model.out_head.weight.shape)
 
 
-total_params_gpt2 = (
-    total_params - sum(p.numel()
-                       for p in model.out_head.parameters())
-)
-# print(f"Number of trainable parameters "
-#       f"considering weight tying: {total_params_gpt2:,}"
+# total_params_gpt2 = (
+#     total_params - sum(p.numel()
+#                        for p in model.out_head.parameters())
 # )
+# # print(f"Number of trainable parameters "
+# #       f"considering weight tying: {total_params_gpt2:,}"
+# # )
 
 
-total_size_bytes = total_params * 4  # 计算总的字节大小（假设每个参数时占用 4 字节的 32 位浮点数）
-total_size_mb = total_size_bytes / (1024 ** 2)  # 转换为兆字节（MB）
-print(f"Total size of the model: {total_size_mb:.2f} MB")
+# total_size_bytes = total_params * 4  # 计算总的字节大小（假设每个参数时占用 4 字节的 32 位浮点数）
+# total_size_mb = total_size_bytes / (1024 ** 2)  # 转换为兆字节（MB）
+# print(f"Total size of the model: {total_size_mb:.2f} MB")
