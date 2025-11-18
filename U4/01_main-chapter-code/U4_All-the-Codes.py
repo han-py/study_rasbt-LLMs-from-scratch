@@ -423,3 +423,18 @@ total_params = sum(p.numel() for p in model.parameters())
 # total_size_bytes = total_params * 4  # 计算总的字节大小（假设每个参数时占用 4 字节的 32 位浮点数）
 # total_size_mb = total_size_bytes / (1024 ** 2)  # 转换为兆字节（MB）
 # print(f"Total size of the model: {total_size_mb:.2f} MB")
+
+
+# 代码清单 4-8 GPT 模型中用于生成文本的函数
+def generate_text_simple(model, idx, max_new_tokens, context_size):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        logits = logits[:, -1, :]
+        probas = torch.softmax(logits, dim=-1)
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)
+        idx = torch.cat((idx, idx_next), dim=1)
+
+    return  idx
