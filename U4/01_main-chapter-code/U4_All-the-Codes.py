@@ -343,3 +343,13 @@ class TransformerBlock(nn.Module):
         x = self.drop_shortcut(x)
         x = shortcut + x
         return x
+
+
+torch.manual_seed(123)
+# 创建形状为 [batch_size, num_tokens, emb_dim] 的样例输入
+x = torch.rand(2, 4, 768)
+block = TransformerBlock(GPT_CONFIG_124M)
+output = block(x)
+
+print("Input shape:", x.shape)
+print("Output shape:", output.shape)
