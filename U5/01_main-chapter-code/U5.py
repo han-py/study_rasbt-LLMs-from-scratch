@@ -162,6 +162,8 @@ GPT_CONFIG_124M = {
     "qkv_bias": False,
 }
 
+model = GPTModel(GPT_CONFIG_124M)
+
 def generate_text_simple(model, idx,  # idx 是当前文本的索引数组，其形状为(batch, n_tokens)
                          max_new_tokens, context_size):
     for _ in range(max_new_tokens):
@@ -178,3 +180,22 @@ def generate_text_simple(model, idx,  # idx 是当前文本的索引数组，其
 
 
 # 代码清单 5-1 用于文本到词元ID转换的工具函数
+def text_to_token_ids(text, tokenizer):
+    encoded = tokenizer.encode(text, allowed_special = {'<|endoftext|>'})
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)   # 使用 .unsqueeze(0) 添加 batch 维度
+    return encoded_tensor
+
+def token_ids_to_text(token_ids, tokenizer):
+    flat = token_ids.squeeze(0)    # 移除batch维度
+    return tokenizer.decode(flat.tolist())
+
+start_context = "Every effort moves you"
+tokenizer = tiktoken.get_encoding("gpt2")
+
+token_ids = generate_text_simple(
+    model = model,
+    idx = text_to_token_ids(start_context, tokenizer),
+    max_new_tokens = 10,
+    context_size = GPT_CONFIG_124M["context_length"],
+)
+print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
