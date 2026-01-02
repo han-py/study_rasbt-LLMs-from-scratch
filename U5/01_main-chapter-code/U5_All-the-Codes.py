@@ -229,4 +229,7 @@ target_probas_2 = probas[text_idx, [0, 1, 2],  targets[text_idx]]
 # print("Text 2:", target_probas_2)
 
 log_probas = torch.log(torch.cat((target_probas_1, target_probas_2)))
-print(log_probas)
+# print(log_probas)
+
+avg_log_probas = torch.mean(log_probas)
+print(avg_log_probas)
