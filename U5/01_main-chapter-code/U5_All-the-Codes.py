@@ -222,8 +222,11 @@ token_ids = torch.argmax(probas, dim=-1, keepdim=True)
 
 text_idx = 0
 target_probas_1 = probas[text_idx, [0, 1, 2],  targets[text_idx]]
-print("Text 1:", target_probas_1)
+# print("Text 1:", target_probas_1)
 
 text_idx = 1
 target_probas_2 = probas[text_idx, [0, 1, 2],  targets[text_idx]]
-print("Text 2:", target_probas_2)
+# print("Text 2:", target_probas_2)
+
+log_probas = torch.log(torch.cat((target_probas_1, target_probas_2)))
+print(log_probas)
