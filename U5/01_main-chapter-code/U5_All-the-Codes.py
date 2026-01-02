@@ -237,5 +237,10 @@ avg_log_probas = torch.mean(log_probas)
 neg_avg_log_probas = avg_log_probas * -1
 # print(neg_avg_log_probas)
 
-print("Logits shape:", logits.shape)
-print("Targets shape:", targets.shape)
+# print("Logits shape:", logits.shape)
+# print("Targets shape:", targets.shape)
+
+logits_flat = logits.flatten(0, 1)
+targets_flat = targets.flatten()
+print("Flattened logits:", logits_flat.shape)
+print("Flattened targets:", targets_flat.shape)
