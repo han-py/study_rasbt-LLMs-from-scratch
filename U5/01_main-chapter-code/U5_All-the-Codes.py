@@ -242,5 +242,8 @@ neg_avg_log_probas = avg_log_probas * -1
 
 logits_flat = logits.flatten(0, 1)
 targets_flat = targets.flatten()
-print("Flattened logits:", logits_flat.shape)
-print("Flattened targets:", targets_flat.shape)
+# print("Flattened logits:", logits_flat.shape)
+# print("Flattened targets:", targets_flat.shape)
+
+loss = torch.nn.functional.cross_entropy(logits_flat, targets_flat)
+print(loss)
