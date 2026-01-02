@@ -215,6 +215,15 @@ probas = torch.softmax(logits, dim=-1)  # 词汇表中每个词元的概率
 token_ids = torch.argmax(probas, dim=-1, keepdim=True)
 # print("Token IDs:\n", token_ids)
 
-print(f"Targets batch 1: {token_ids_to_text(targets[0], tokenizer)}")
-print(f"Outputs batch 1:"
-      f"{token_ids_to_text(token_ids[0].flatten(), tokenizer)}")
+# print(f"Targets batch 1: {token_ids_to_text(targets[0], tokenizer)}")
+# print(f"Outputs batch 1:"
+#       f"{token_ids_to_text(token_ids[0].flatten(), tokenizer)}")
+
+
+text_idx = 0
+target_probas_1 = probas[text_idx, [0, 1, 2],  targets[text_idx]]
+print("Text 1:", target_probas_1)
+
+text_idx = 1
+target_probas_2 = probas[text_idx, [0, 1, 2],  targets[text_idx]]
+print("Text 2:", target_probas_2)
