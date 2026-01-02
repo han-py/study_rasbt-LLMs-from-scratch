@@ -348,3 +348,20 @@ def calc_loss_batch(input_batch, target_batch, model, device):
     return loss
 
 # 代码清单 5-2 用于计算训练集和验证集损失的函数
+def calc_loss_loader(data_loader, model, device, num_batches = None):
+    total_loss = 0.
+    if len(data_loader) == 0:
+        return float("nan")
+    elif num_batches is None:
+        num_batches = len(data_loader)  # 如果没有指定遍历多少个批次（num_batches），那么就遍历所有批次
+    else:
+        num_batches = min(num_batches, len(data_loader))  # 如果 num_batches 超过数据加载器中的批次数，那么就需要减少批次数，以匹配数据加载器中的总批次数
+    for i, (input_batch, target_batch) in enumerate(data_loader):
+        if i < num_batches:
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            total_loss += loss.item()  # 每个批次的损失的总和
+        else:
+            break
+    return total_loss / num_batches  # 对所有批次的损失求平均值
