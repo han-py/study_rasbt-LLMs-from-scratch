@@ -335,3 +335,16 @@ for x,y in train_loader:
 print("\nValidation loader:")
 for x,y in val_loader:
     print(x.shape, y.shape)
+
+
+# 实现一个工具函数，用于计算通过训练集加载器和验证集加载器返回的给定批次的交叉熵损失
+def calc_loss_batch(input_batch, target_batch, model, device):
+    input_batch = input_batch.to(device)
+    target_batch = target_batch.to(device)
+    logits = model(input_batch)
+    loss = torch.nn.functional.cross_entropy(
+        logits.flatten(0, 1), target_batch.flatten()
+    )
+    return loss
+
+# 代码清单 5-2 用于计算训练集和验证集损失的函数
