@@ -232,4 +232,10 @@ log_probas = torch.log(torch.cat((target_probas_1, target_probas_2)))
 # print(log_probas)
 
 avg_log_probas = torch.mean(log_probas)
-print(avg_log_probas)
+# print(avg_log_probas)
+
+neg_avg_log_probas = avg_log_probas * -1
+# print(neg_avg_log_probas)
+
+print("Logits shape:", logits.shape)
+print("Targets shape:", targets.shape)
