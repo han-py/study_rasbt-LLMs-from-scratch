@@ -435,3 +435,18 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
     decoded_text = token_ids_to_text(token_ids, tokenizer)
     print(decoded_text.replace("\n", " "))  # 紧凑的打印格式
     model.train()
+
+
+torch.manual_seed(123)
+model = GPTModel(GPT_CONFIG_124M)
+model.to(device)
+optimizer = torch.optim.AdamW(
+    model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
+    lr=0.0004, weight_decay=0.1
+)
+num_epochs = 10
+train_losses, val_losses, tokens_seen = train_model_simple(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=5, eval_iter=5,
+    start_context="Every effort moves you", tokenizer=tokenizer
+)
