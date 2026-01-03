@@ -369,9 +369,9 @@ def calc_loss_loader(data_loader, model, device, num_batches = None):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)  # 如果你有一台支持CUDA的GPU机器，那么大语言模型将自动在GPU上训练且不需要修改代码
-with torch.no_grad():  # 因为还没有开始训练，所以不使用梯度追踪，这样会更高效
-    train_loss = calc_loss_loader(train_loader, model, device)  # 通过“设备”设置，可以确保所有的数据和大语言模型在同一个设备上
-    val_loss = calc_loss_loader(val_loader, model, device)
+# with torch.no_grad():  # 因为还没有开始训练，所以不使用梯度追踪，这样会更高效
+#     train_loss = calc_loss_loader(train_loader, model, device)  # 通过“设备”设置，可以确保所有的数据和大语言模型在同一个设备上
+#     val_loss = calc_loss_loader(val_loader, model, device)
 # print("Training loss:", train_loss)
 # print("Validation loss:", val_loss)
 
@@ -410,3 +410,28 @@ def train_model_simple(model, train_loader,val_loader,
             model, tokenizer, device, start_context
         )
     return train_loss, val_losses, track_tokens_seen
+
+def evaluate_model(model, train_loader, val_loader, device, eval_iter):
+    model.eval()  # 在评估阶段禁用 dropout, 以产出稳定且可复现的结果
+    with torch.no_grad():  # 评估阶段也会禁用梯度跟踪，因为这是不需要的，而且这样可以减少计算开销
+        train_loss = calc_loss_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_loss = calc_loss_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+    model.train()
+    return train_loss, val_loss
+
+def generate_and_print_sample(model, tokenizer, device, start_context):
+    model.eval()
+    context_size = model.pos_emb.weight.shape[0]
+    encoded = text_to_token_ids(start_context, tokenizer).to(device)
+    with torch.no_grad():
+        token_ids = generate_text_simple(
+            model=model, idx=encoded,
+            max_new_tokens=50, context_size=context_size
+        )
+    decoded_text = token_ids_to_text(token_ids, tokenizer)
+    print(decoded_text.replace("\n", " "))  # 紧凑的打印格式
+    model.train()
