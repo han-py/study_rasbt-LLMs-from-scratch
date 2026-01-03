@@ -372,5 +372,41 @@ model = model.to(device)  # 如果你有一台支持CUDA的GPU机器，那么大
 with torch.no_grad():  # 因为还没有开始训练，所以不使用梯度追踪，这样会更高效
     train_loss = calc_loss_loader(train_loader, model, device)  # 通过“设备”设置，可以确保所有的数据和大语言模型在同一个设备上
     val_loss = calc_loss_loader(val_loader, model, device)
-print("Training loss:", train_loss)
-print("Validation loss:", val_loss)
+# print("Training loss:", train_loss)
+# print("Validation loss:", val_loss)
+
+
+# 代码清单 5-3 预训练大模型的主函数
+def train_model_simple(model, train_loader,val_loader,
+                       optimizer, device, num_epochs,
+                       eval_freq, eval_iter, start_context, tokenizer):
+    train_losses, val_losses ,track_tokens_seen = [], [], []  # 初始化列表以跟踪损失和所见的词元
+    tokens_seen, global_step = 0, -1
+
+    for epoch in range(num_epochs):  # 开始主训练循环
+        model.train()
+        for input_batch, target_batch in train_loader:
+            optimizer.zero_grad()  # 重置上一个批次迭代中的损失梯度
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            loss.backward()  # 计算损失梯度
+            optimizer.step()  # 使用损失梯度更新模型权重
+            tokens_seen += input_batch.numel()
+            global_step += 1
+
+            if global_step % eval_freq == 0:  # 可选的评估步骤
+                train_loss, val_loss = evaluate_model(
+                    model, train_loader, val_loader, device, eval_iter
+                )
+                train_losses.append(train_loss)
+                track_tokens_seen.append(tokens_seen)
+                print(f"Ep {epoch+1} (Step {global_step:06d}):"
+                      f"Train loss {train_loss:.3f},"
+                      f"Val loss {val_loss:.3f}"
+                )
+
+        generate_and_print_sample(  # 每轮之后打印一个文本样本
+            model, tokenizer, device, start_context
+        )
+    return train_loss, val_losses, track_tokens_seen
