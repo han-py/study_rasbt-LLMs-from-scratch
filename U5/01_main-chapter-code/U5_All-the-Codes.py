@@ -327,14 +327,14 @@ val_loader = create_dataloader_V1(
     num_workers=0,
 )
 
-# 遍历数据加载器，确保它们被正确创建
-print("Train loader:")
-for x,y in train_loader:
-    print(x.shape, y.shape)
-
-print("\nValidation loader:")
-for x,y in val_loader:
-    print(x.shape, y.shape)
+# # 遍历数据加载器，确保它们被正确创建
+# print("Train loader:")
+# for x,y in train_loader:
+#     print(x.shape, y.shape)
+#
+# print("\nValidation loader:")
+# for x,y in val_loader:
+#     print(x.shape, y.shape)
 
 
 # 实现一个工具函数，用于计算通过训练集加载器和验证集加载器返回的给定批次的交叉熵损失
@@ -365,3 +365,12 @@ def calc_loss_loader(data_loader, model, device, num_batches = None):
         else:
             break
     return total_loss / num_batches  # 对所有批次的损失求平均值
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)  # 如果你有一台支持CUDA的GPU机器，那么大语言模型将自动在GPU上训练且不需要修改代码
+with torch.no_grad():  # 因为还没有开始训练，所以不使用梯度追踪，这样会更高效
+    train_loss = calc_loss_loader(train_loader, model, device)  # 通过“设备”设置，可以确保所有的数据和大语言模型在同一个设备上
+    val_loss = calc_loss_loader(val_loader, model, device)
+print("Training loss:", train_loss)
+print("Validation loss:", val_loss)
