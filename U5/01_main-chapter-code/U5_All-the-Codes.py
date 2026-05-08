@@ -561,3 +561,6 @@ new_logits = torch.where(
     other=next_token_logits # 保留其他词元的原始logits值
 )
 # print(new_logits)
+
+topk_probas = torch.softmax(new_logits, dim=-0)
+# print(topk_probas)
