@@ -490,7 +490,7 @@ token_ids = generate_text_simple(
     max_new_tokens = 25,
     context_size = GPT_CONFIG_124M["context_length"]
 )
-print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
+# print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
 
 
 # ### 温度缩放
@@ -591,3 +591,14 @@ def generate(model, idx, max_new_tokens, context_size,temperature=0.0, top_k=Non
             break
         idx = torch.cat((idx, idx_next), dim=-1)
     return idx
+
+torch.manual_seed(123)
+token_ids = generate(
+    model=model,
+    idx=text_to_token_ids("Every effort moves you", tokenizer),
+    max_new_tokens=15,
+    context_size=GPT_CONFIG_124M["context_length"],
+    top_k=25,
+    temperature=1.4
+)
+print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
