@@ -493,74 +493,101 @@ token_ids = generate_text_simple(
 print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
 
 
-### 温度缩放
-vocab = {
-    "closer": 0,
-    "every": 1,
-    "effort": 2,
-    "forward": 3,
-    "incher": 4,
-    "moves": 5,
-    "pizza": 6,
-    "toward": 7,
-    "you": 8,
-}
-inverse_vocab = {v: k for k, v in vocab.items()}
-next_token_logits = torch.tensor(
-    [4.51, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79]
-)
+# ### 温度缩放
+# vocab = {
+#     "closer": 0,
+#     "every": 1,
+#     "effort": 2,
+#     "forward": 3,
+#     "incher": 4,
+#     "moves": 5,
+#     "pizza": 6,
+#     "toward": 7,
+#     "you": 8,
+# }
+# inverse_vocab = {v: k for k, v in vocab.items()}
+# next_token_logits = torch.tensor(
+#     [4.51, 0.89, -1.90, 6.75, 1.63, -1.62, -1.89, 6.28, 1.79]
+# )
+#
+# probas = torch.softmax(next_token_logits, dim=-0)
+# next_token_id = torch.argmax(probas).item()
+# # print(inverse_vocab[next_token_id])
+#
+# # torch.manual_seed(123)
+# # next_token_id = torch.multinomial(probas, num_samples=1).item()
+# # print(inverse_vocab[next_token_id])
+# def print_sampled_tokens(probas):
+#     torch.manual_seed(123)
+#     sample = [torch.multinomial(probas, num_samples=1).item()
+#               for i in range(1_000)] # 重复1000次
+#     sampled_ids = torch.bincount(torch.tensor(sample))
+#     for i, freq in enumerate(sampled_ids):
+#         print(f"{freq} x {inverse_vocab[i]}")
+#
+# # print_sampled_tokens(probas)
+#
+#
+# def softmax_with_temperature(logits, temperature):
+#     scaled_logits = logits / temperature
+#     return torch.softmax(scaled_logits, dim=0)
+#
+# # temperatures = [1, 0.1, 5]
+# # scaled_probas = [softmax_with_temperature(next_token_logits, t)
+# #                 for t in temperatures]
+# # x = torch.arange(len(vocab))
+# # bar_width= 0.15
+# # fig, ax = plt.subplots(figsize=(5, 3))
+# # for i,T in enumerate(temperatures):
+# #     rects = ax.bar(x + i * bar_width, scaled_probas[i],
+# #                    bar_width, label = f"temperature = {T}")
+# # ax.set_ylabel("Probability")
+# # ax.set_xticks(x)
+# # ax.set_xticklabels(vocab.keys(), rotation = 90)
+# # ax.legend()
+# # plt.tight_layout ()
+# # plt.show()
+#
+#
+# ### Top-k 采样
+# top_k = 3
+# top_logits, top_pos = torch.topk(next_token_logits, k=top_k)
+# # print("Top-k tokens:", top_logits)
+# # print("Top-k positions:", top_pos)
+#
+# new_logits = torch.where(
+#     condition=next_token_logits <top_logits[-1], # 识别出比前三个logits值中最低的logits值还低的logits值
+#     input=torch.tensor(float("-inf")),  # 将这些更低的logits值替换为负无穷大
+#     other=next_token_logits # 保留其他词元的原始logits值
+# )
+# # print(new_logits)
+#
+# topk_probas = torch.softmax(new_logits, dim=-0)
+# # print(topk_probas)
 
-probas = torch.softmax(next_token_logits, dim=-0)
-next_token_id = torch.argmax(probas).item()
-# print(inverse_vocab[next_token_id])
 
-# torch.manual_seed(123)
-# next_token_id = torch.multinomial(probas, num_samples=1).item()
-# print(inverse_vocab[next_token_id])
-def print_sampled_tokens(probas):
-    torch.manual_seed(123)
-    sample = [torch.multinomial(probas, num_samples=1).item()
-              for i in range(1_000)] # 重复1000次
-    sampled_ids = torch.bincount(torch.tensor(sample))
-    for i, freq in enumerate(sampled_ids):
-        print(f"{freq} x {inverse_vocab[i]}")
-
-# print_sampled_tokens(probas)
-
-
-def softmax_with_temperature(logits, temperature):
-    scaled_logits = logits / temperature
-    return torch.softmax(scaled_logits, dim=0)
-
-# temperatures = [1, 0.1, 5]
-# scaled_probas = [softmax_with_temperature(next_token_logits, t)
-#                 for t in temperatures]
-# x = torch.arange(len(vocab))
-# bar_width= 0.15
-# fig, ax = plt.subplots(figsize=(5, 3))
-# for i,T in enumerate(temperatures):
-#     rects = ax.bar(x + i * bar_width, scaled_probas[i],
-#                    bar_width, label = f"temperature = {T}")
-# ax.set_ylabel("Probability")
-# ax.set_xticks(x)
-# ax.set_xticklabels(vocab.keys(), rotation = 90)
-# ax.legend()
-# plt.tight_layout ()
-# plt.show()
-
-
-### Top-k 采样
-top_k = 3
-top_logits, top_pos = torch.topk(next_token_logits, k=top_k)
-# print("Top-k tokens:", top_logits)
-# print("Top-k positions:", top_pos)
-
-new_logits = torch.where(
-    condition=next_token_logits <top_logits[-1], # 识别出比前三个logits值中最低的logits值还低的logits值
-    input=torch.tensor(float("-inf")),  # 将这些更低的logits值替换为负无穷大
-    other=next_token_logits # 保留其他词元的原始logits值
-)
-# print(new_logits)
-
-topk_probas = torch.softmax(new_logits, dim=-0)
-# print(topk_probas)
+# 代码清单 5-4 修改后更具多样性的文本生成函数
+def generate(model, idx, max_new_tokens, context_size,temperature=0.0, top_k=None, eos_id=None):
+    for _ in range(max_new_tokens): # 这个for循环与之前一样，获取logits,并且只关注最后一个时间步
+        idx_cond = idx[:, -context_size:]
+        with torch.no_grad():
+            logits = model(idx_cond)
+        logits = logits[:, -1, :]
+        if top_k is not None: # 使用Top-k采样筛选logits
+            top_logits , _ = torch.topk(logits, k=top_k)
+            min_val = top_logits[:,-1]
+            logits = torch.where(
+                logits < min_val,
+                torch.tensor(float("-inf")).to(logits.device),
+                logits
+            )
+        if temperature > 0.0: # 使用温度缩放
+            logits = logits / temperature
+            probas = torch.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probas, num_samples=1)
+        else: # 当禁用温度缩放时，像以前一样执行贪心解码，选取下一个词元
+            idx_next = torch.argmax(logits, dim=-1, keepdim=True)
+        if idx_next == eos_id: # 如果遇到序列结束词元，则提前停止生成
+            break
+        idx = torch.cat((idx, idx_next), dim=-1)
+    return idx
