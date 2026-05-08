@@ -554,3 +554,10 @@ top_k = 3
 top_logits, top_pos = torch.topk(next_token_logits, k=top_k)
 # print("Top-k tokens:", top_logits)
 # print("Top-k positions:", top_pos)
+
+new_logits = torch.where(
+    condition=next_token_logits <top_logits[-1], # 识别出比前三个logits值中最低的logits值还低的logits值
+    input=torch.tensor(float("-inf")),  # 将这些更低的logits值替换为负无穷大
+    other=next_token_logits # 保留其他词元的原始logits值
+)
+# print(new_logits)
