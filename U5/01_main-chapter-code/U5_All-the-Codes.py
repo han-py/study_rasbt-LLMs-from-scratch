@@ -457,7 +457,7 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
 #
 #
 # # 创建一张简单的图表，将训练集和验证集的损失并列显示
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 # from matplotlib.ticker import MaxNLocator
 # def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
 #     fig, ax1 = plt.subplots(figsize=(5, 3))
@@ -524,4 +524,26 @@ def print_sampled_tokens(probas):
     sampled_ids = torch.bincount(torch.tensor(sample))
     for i, freq in enumerate(sampled_ids):
         print(f"{freq} x {inverse_vocab[i]}")
+
 print_sampled_tokens(probas)
+
+
+def softmax_with_temperature(logits, temperature):
+    scaled_logits = logits / temperature
+    return torch.softmax(scaled_logits, dim=0)
+
+temperatures = [1, 0.1, 5]
+scaled_probas = [softmax_with_temperature(next_token_logits, t)
+                for t in temperatures]
+x = torch.arange(len(vocab))
+bar_width= 0.15
+fig, ax = plt.subplots(figsize=(5, 3))
+for i,T in enumerate(temperatures):
+    rects = ax.bar(x + i * bar_width, scaled_probas[i],
+                   bar_width, label = f"temperature = {T}")
+ax.set_ylabel("Probability")
+ax.set_xticks(x)
+ax.set_xticklabels(vocab.keys(), rotation = 90)
+ax.legend()
+plt.tight_layout ()
+plt.show()
