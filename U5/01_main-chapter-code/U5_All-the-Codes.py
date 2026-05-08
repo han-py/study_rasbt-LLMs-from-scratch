@@ -1,4 +1,7 @@
 import os
+
+from jinja2.optimizer import optimize
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" # 解决多线程运行时出现的错误
 
 import torch
@@ -441,19 +444,19 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
     model.train()
 
 
-# torch.manual_seed(123)
-# model = GPTModel(GPT_CONFIG_124M)
-# model.to(device)
-# optimizer = torch.optim.AdamW(
-#     model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
-#     lr=0.0004, weight_decay=0.1
-# )
-# num_epochs = 10
-# train_losses, val_losses, tokens_seen = train_model_simple(
-#     model, train_loader, val_loader, optimizer, device,
-#     num_epochs=num_epochs, eval_freq=5, eval_iter=5,
-#     start_context="Every effort moves you", tokenizer=tokenizer
-# )
+torch.manual_seed(123)
+model = GPTModel(GPT_CONFIG_124M)
+model.to(device)
+optimizer = torch.optim.AdamW(
+    model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
+    lr=0.0004, weight_decay=0.1
+)
+num_epochs = 10
+train_losses, val_losses, tokens_seen = train_model_simple(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=5, eval_iter=5,
+    start_context="Every effort moves you", tokenizer=tokenizer
+)
 #
 #
 # # 创建一张简单的图表，将训练集和验证集的损失并列显示
@@ -601,4 +604,38 @@ token_ids = generate(
     top_k=25,
     temperature=1.4
 )
-print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
+# print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
+
+
+# torch.save(model.state_dict(), "model.pth")
+#
+# model = GPTModel(GPT_CONFIG_124M)
+# model.load_state_dict(torch.load("model.pth", map_location=device))
+# model.eval()
+
+
+# torch.save({
+#     "model_state_dict": model.state_dict(),
+#     "optimizer_state_dict": optimizer.state_dict(),
+#     },
+#     "model_and_optimizer.pth"
+# )
+#
+# checkpoint = torch.load("model_and_optimizer.pth", map_location=device)
+# model = GPTModel(GPT_CONFIG_124M)
+# model.load_state_dict(checkpoint["model_state_dict"])
+# optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.1)
+# optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+# model.train()
+
+
+# pip install tensorflow>=2.15.0 tqdm>=4.66
+
+# import urllib.request
+# url = (
+#     "https://raw.githubusercontent.com/rasbt/"
+#     "LLMs-from-scratch/main/ch05/"
+#     "01_main-chapter-code/gpt_download.py"
+# )
+# filename = url.split('/')[-1]
+# urllib.request.urlretrieve(url, filename)
