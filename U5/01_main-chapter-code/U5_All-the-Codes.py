@@ -441,39 +441,53 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
     model.train()
 
 
-torch.manual_seed(123)
-model = GPTModel(GPT_CONFIG_124M)
-model.to(device)
-optimizer = torch.optim.AdamW(
-    model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
-    lr=0.0004, weight_decay=0.1
+# torch.manual_seed(123)
+# model = GPTModel(GPT_CONFIG_124M)
+# model.to(device)
+# optimizer = torch.optim.AdamW(
+#     model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
+#     lr=0.0004, weight_decay=0.1
+# )
+# num_epochs = 10
+# train_losses, val_losses, tokens_seen = train_model_simple(
+#     model, train_loader, val_loader, optimizer, device,
+#     num_epochs=num_epochs, eval_freq=5, eval_iter=5,
+#     start_context="Every effort moves you", tokenizer=tokenizer
+# )
+#
+#
+# # 创建一张简单的图表，将训练集和验证集的损失并列显示
+# import matplotlib.pyplot as plt
+# from matplotlib.ticker import MaxNLocator
+# def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
+#     fig, ax1 = plt.subplots(figsize=(5, 3))
+#     ax1.plot(epochs_seen, train_losses, label = "Training loss")
+#     ax1.plot(
+#         epochs_seen, val_losses, linestyle="-.",label = "Validation loss"
+#     )
+#     ax1.set_xlabel("Epochs")
+#     ax1.set_ylabel("Loss")
+#     ax1.legend(loc = "upper right")
+#     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+#     ax2 = ax1.twiny() # 创建共享同一个y轴的第二个x轴
+#     ax2.plot(tokens_seen, train_losses, alpha=0)  # 对齐刻度线的隐藏图表
+#     ax2.set_xlabel("Tokens seen")
+#     fig.tight_layout()
+#     plt.show()
+#
+# epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
+# plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+
+
+# 先将模型移到CPU上，因为相对较小的模型的推断不需要GPU。此外，在训练后，需要将模型置于评估模式，以关闭诸如dropout之类的随即组件
+model.to("cpu")
+model.eval()
+
+tokenizer = tiktoken.get_encoding("gpt2")
+token_ids = generate_text_simple(
+    model = model,
+    idx = text_to_token_ids("Every effort moves you", tokenizer),
+    max_new_tokens = 25,
+    context_size = GPT_CONFIG_124M["context_length"]
 )
-num_epochs = 10
-train_losses, val_losses, tokens_seen = train_model_simple(
-    model, train_loader, val_loader, optimizer, device,
-    num_epochs=num_epochs, eval_freq=5, eval_iter=5,
-    start_context="Every effort moves you", tokenizer=tokenizer
-)
-
-
-# 创建一张简单的图表，将训练集和验证集的损失并列显示
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
-    fig, ax1 = plt.subplots(figsize=(5, 3))
-    ax1.plot(epochs_seen, train_losses, label = "Training loss")
-    ax1.plot(
-        epochs_seen, val_losses, linestyle="-.",label = "Validation loss"
-    )
-    ax1.set_xlabel("Epochs")
-    ax1.set_ylabel("Loss")
-    ax1.legend(loc = "upper right")
-    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax2 = ax1.twiny() # 创建共享同一个y轴的第二个x轴
-    ax2.plot(tokens_seen, train_losses, alpha=0)  # 对齐刻度线的隐藏图表
-    ax2.set_xlabel("Tokens seen")
-    fig.tight_layout()
-    plt.show()
-
-epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
-plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
