@@ -444,19 +444,19 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
     model.train()
 
 
-torch.manual_seed(123)
-model = GPTModel(GPT_CONFIG_124M)
-model.to(device)
-optimizer = torch.optim.AdamW(
-    model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
-    lr=0.0004, weight_decay=0.1
-)
-num_epochs = 10
-train_losses, val_losses, tokens_seen = train_model_simple(
-    model, train_loader, val_loader, optimizer, device,
-    num_epochs=num_epochs, eval_freq=5, eval_iter=5,
-    start_context="Every effort moves you", tokenizer=tokenizer
-)
+# torch.manual_seed(123)
+# model = GPTModel(GPT_CONFIG_124M)
+# model.to(device)
+# optimizer = torch.optim.AdamW(
+#     model.parameters(),  # .parameters() 方法返回模型的所有可训练参数
+#     lr=0.0004, weight_decay=0.1
+# )
+# num_epochs = 10
+# train_losses, val_losses, tokens_seen = train_model_simple(
+#     model, train_loader, val_loader, optimizer, device,
+#     num_epochs=num_epochs, eval_freq=5, eval_iter=5,
+#     start_context="Every effort moves you", tokenizer=tokenizer
+# )
 #
 #
 # # 创建一张简单的图表，将训练集和验证集的损失并列显示
@@ -639,3 +639,9 @@ token_ids = generate(
 # )
 # filename = url.split('/')[-1]
 # urllib.request.urlretrieve(url, filename)
+
+
+from gpt_download import download_and_load_gpt2
+settings, params = download_and_load_gpt2(
+    model_size = "124M", models_dir="gpt2"
+)
