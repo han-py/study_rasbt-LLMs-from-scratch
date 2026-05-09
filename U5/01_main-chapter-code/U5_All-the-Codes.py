@@ -676,7 +676,7 @@ def assign(left, right):
         raise ValueError(f"Shape mismatch.Left: {left.shape}, "
                          "Right: {right.shape}"
         )
-    return torch.nn.Parameter(torch.temsor(right))
+    return torch.nn.Parameter(torch.tensor(right))
 
 # 代码清单 5-5 将OpenAI的权重加载到GPT模型代码中
 import numpy as np
