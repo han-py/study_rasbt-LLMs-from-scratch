@@ -740,19 +740,19 @@ def load_weights_into_gpt(gpt, params): # 将模型的位置信息和词元嵌�
 
         gpt.trf_blocks[b].norm1.scale = assign(
             gpt.trf_blocks[b].norm1.scale,
-            params["blocks"][b]["1n_1"]["g"]
+            params["blocks"][b]["ln_1"]["g"]
         )
         gpt.trf_blocks[b].norm1.shift = assign(
             gpt.trf_blocks[b].norm1.shift,
-            params["blocks"][b]["1n_1"]["b"]
+            params["blocks"][b]["ln_1"]["b"]
         )
         gpt.trf_blocks[b].norm2.scale = assign(
             gpt.trf_blocks[b].norm2.scale,
-            params["blocks"][b]["1n_2"]["g"]
+            params["blocks"][b]["ln_2"]["g"]
         )
         gpt.trf_blocks[b].norm2.shift = assign(
             gpt.trf_blocks[b].norm2.shift,
-            params["blocks"][b]["1n_2"]["b"]
+            params["blocks"][b]["ln_2"]["b"]
         )
 
         gpt.final_norm.scale = assign(gpt.final_norm.scale, params["g"])
