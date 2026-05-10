@@ -191,6 +191,9 @@ for input_batch, target_batch in train_loader:
 # print("Input batch dimensions:", input_batch.shape)
 # print("Target batch dimensions:", target_batch.shape)
 
-print(f"{len(train_loader)} training batches")
-print(f"{len(val_loader)} validation batches")
-print(f"{len(test_loader)} test batches")
+# print(f"{len(train_loader)} training batches")
+# print(f"{len(val_loader)} validation batches")
+# print(f"{len(test_loader)} test batches")
+
+
+CHOOSE_MODEL = "gpt2-small (124M)"
