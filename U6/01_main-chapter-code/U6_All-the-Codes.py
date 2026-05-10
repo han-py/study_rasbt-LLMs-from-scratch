@@ -5,6 +5,7 @@ import zipfile
 from pathlib import Path
 
 from datasets.utils import extract
+from pandas.core.common import random_state
 from patsy import origin
 
 url = "http://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip"
@@ -60,3 +61,24 @@ balanced_df = create_balanced_dataset(df)
 # print(balanced_df["Label"].value_counts())
 
 balanced_df["Label"] = balanced_df["Label"].map({"ham": 0, "spam": 1}) # 将标签转换为数值形式，方便后续模型训练
+
+
+# 代码清单 6-3 划分数据集
+def random_split(df, train_frac, validation_frac):
+
+    df = df.simple(
+        frac = 1, random_state = 123
+    ).reset_index(drop = True) # 打乱整个 Dataframe
+    train_end = int(len(df) * train_frac) # 计算拆分索引
+    validation_end = train_end + int(len(df) * validation_frac)
+
+    train_df = df[:train_end]
+    validation_df = df[train_end:validation_end]
+    test_df = df[validation_end:]
+
+    return train_df, validation_df, test_df
+
+train_df, validation_df, test_df = random_split(
+    balanced_df, 0.7, 0.1
+) # 作为剩余部分，测试集比例被隐含设置为0.2
+
