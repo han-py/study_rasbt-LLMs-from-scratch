@@ -157,3 +157,40 @@ test_dataset = SpamDataset(
     max_length=train_dataset.max_length,
     tokenizer=tokenizer
 )
+
+
+# 代码清单 6-5 在PyTorch 中船舰数据加载器
+from torch.utils.data import DataLoader
+
+num_workers = 0 # 此设置确保了与大多数计算机的兼容性
+batch_size = 8
+torch.manual_seed(123)
+
+train_loader = DataLoader(
+    dataset=train_dataset,
+    batch_size=batch_size,
+    shuffle=True,
+    num_workers=num_workers,
+    drop_last= True,
+)
+val_loader = DataLoader(
+    dataset=val_dataset,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    drop_last= False,
+)
+test_loader = DataLoader(
+    dataset=test_dataset,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    drop_last= False,
+)
+
+for input_batch, target_batch in train_loader:
+    pass
+# print("Input batch dimensions:", input_batch.shape)
+# print("Target batch dimensions:", target_batch.shape)
+
+print(f"{len(train_loader)} training batches")
+print(f"{len(val_loader)} validation batches")
+print(f"{len(test_loader)} test batches")
