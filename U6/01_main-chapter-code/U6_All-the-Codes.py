@@ -146,4 +146,14 @@ train_dataset = SpamDataset(
     max_length=None,
     tokenizer=tokenizer
 )
-print(train_dataset.max_length)
+# print(train_dataset.max_length)
+val_dataset = SpamDataset(
+    csv_file="validation.csv",
+    max_length=train_dataset.max_length,
+    tokenizer=tokenizer
+)
+test_dataset = SpamDataset(
+    csv_file="test.csv",
+    max_length=train_dataset.max_length,
+    tokenizer=tokenizer
+)
