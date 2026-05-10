@@ -90,7 +90,7 @@ def random_split(df, train_frac, validation_frac):
 
 import  tiktoken
 tokenizer = tiktoken.get_encoding("gpt2")
-print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"}))
+# print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"}))
 
 
 # 代码清单 6-4 构建一个 PyTorch Dataset 类
@@ -140,3 +140,10 @@ class SpamDataset(Dataset):
             if encoded_length > max_length:
                 max_length = encoded_length
         return max_length
+
+train_dataset = SpamDataset(
+    csv_file="train.csv",
+    max_length=None,
+    tokenizer=tokenizer
+)
+print(train_dataset.max_length)
