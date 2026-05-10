@@ -34,10 +34,13 @@ download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
 
 
 import pandas as pd
-df = pd.read_csv(
-    data_file_path,
-    sep="\t",
-    header=None,
-    names=["Label", "Text"]
-)
-print(df)
+# df = pd.read_csv(
+#     data_file_path,
+#     sep="\t",
+#     header=None,
+#     names=["Label", "Text"]
+# )
+# print(df)
+# print(df.Label.value_counts())
+
+
