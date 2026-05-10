@@ -85,3 +85,8 @@ def random_split(df, train_frac, validation_frac):
 # train_df.to_csv("train.csv", index=None)
 # validation_df.to_csv("validation.csv", index=None)
 # test_df.to_csv("test.csv", index=None)
+
+
+import  tiktoken
+tokenizer = tiktoken.get_encoding("gpt2")
+print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"})) # 测试特殊标记的编码
