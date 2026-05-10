@@ -66,7 +66,7 @@ balanced_df["Label"] = balanced_df["Label"].map({"ham": 0, "spam": 1}) # 将标�
 # 代码清单 6-3 划分数据集
 def random_split(df, train_frac, validation_frac):
 
-    df = df.simple(
+    df = df.sample(
         frac = 1, random_state = 123
     ).reset_index(drop = True) # 打乱整个 Dataframe
     train_end = int(len(df) * train_frac) # 计算拆分索引
@@ -78,7 +78,10 @@ def random_split(df, train_frac, validation_frac):
 
     return train_df, validation_df, test_df
 
-train_df, validation_df, test_df = random_split(
-    balanced_df, 0.7, 0.1
-) # 作为剩余部分，测试集比例被隐含设置为0.2
-
+# train_df, validation_df, test_df = random_split(
+#     balanced_df, 0.7, 0.1
+# ) # 作为剩余部分，测试集比例被隐含设置为0.2
+#
+# train_df.to_csv("train.csv", index=None)
+# validation_df.to_csv("validation.csv", index=None)
+# test_df.to_csv("test.csv", index=None)
