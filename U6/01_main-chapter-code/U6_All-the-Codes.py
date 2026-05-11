@@ -452,3 +452,12 @@ def load_weights_into_gpt(gpt, params): # 将模型的位置信息和词元嵌�
         gpt.final_norm.scale = assign(gpt.final_norm.scale, params["g"])
         gpt.final_norm.shift = assign(gpt.final_norm.shift, params["b"])
         gpt.out_head.weight = assign(gpt.out_head.weight,params["wte"]) # OpenAI 的原始 GPT-2 模型在其输出层中复用了词元嵌入权重，以减少参数总数，这一概念被称为“权重绑定”
+
+model_size = CHOOSE_MODEL.split(" ")[-1].lstrip("(").rstrip(")")
+settings, params = download_and_load_gpt2(
+    model_size=model_size, models_dir="gpt2"
+)
+
+model = GPTModel(BASE_CONFIG)
+load_weights_into_gpt(model, params)
+model.eval()
