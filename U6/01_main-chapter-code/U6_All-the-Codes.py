@@ -461,3 +461,36 @@ settings, params = download_and_load_gpt2(
 model = GPTModel(BASE_CONFIG)
 load_weights_into_gpt(model, params)
 model.eval()
+
+
+def generate_text_simple(model, idx,  # idx 是当前文本的索引数组，其形状为(batch, n_tokens)
+                         max_new_tokens, context_size):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]  # 将当前文本截断至支持的长度。如果大语言模型仅支持 5 个词元，但此时文本长度为 10，则只有最后 5 个词元会被用作输入文本
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        logits = logits[:, -1, :]  # 只关注最后一个输出的内容，因此形状会从 (batch, n_token, vocab_size) 变为 (batch, vocab_size)
+        probas = torch.softmax(logits, dim=-1)  # probas 的形状为 (batch, vocab_size)
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)  # idx_next 的形状为 (batch, 1)
+        idx = torch.cat((idx, idx_next), dim=1)  # 将计算出的下一个字符的索引添加到索引数组中，此时 idx 的形状会变为 (batch, n_tokens + 1)
+
+    return  idx
+
+def text_to_token_ids(text, tokenizer):
+    encoded = tokenizer.encode(text, allowed_special = {'<|endoftext|>'})
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)   # 使用 .unsqueeze(0) 添加 batch 维度
+    return encoded_tensor
+
+def token_ids_to_text(token_ids, tokenizer):
+    flat = token_ids.squeeze(0)    # 移除batch维度
+    return tokenizer.decode(flat.tolist())
+
+text_1 = "Every effort moves you"
+token_ids = generate_text_simple(
+    model=model,
+    idx=text_to_token_ids(text_1, tokenizer),
+    max_new_tokens=15,
+    context_size=BASE_CONFIG['context_length'],
+)
+print(token_ids_to_text(token_ids, tokenizer))
