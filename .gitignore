@@ -13,3 +13,10 @@
 /U6/01_main-chapter-code/test.csv
 /U6/01_main-chapter-code/train.csv
 /U6/01_main-chapter-code/validation.csv
+/U6/01_main-chapter-code/gpt2/124M/checkpoint
+/U6/01_main-chapter-code/gpt2/124M/encoder.json
+/U6/01_main-chapter-code/gpt2/124M/hparams.json
+/U6/01_main-chapter-code/gpt2/124M/model.ckpt.data-00000-of-00001
+/U6/01_main-chapter-code/gpt2/124M/model.ckpt.index
+/U6/01_main-chapter-code/gpt2/124M/model.ckpt.meta
+/U6/01_main-chapter-code/gpt2/124M/vocab.bpe
