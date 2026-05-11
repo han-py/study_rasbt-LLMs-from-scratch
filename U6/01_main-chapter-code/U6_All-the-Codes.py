@@ -493,4 +493,17 @@ token_ids = generate_text_simple(
     max_new_tokens=15,
     context_size=BASE_CONFIG['context_length'],
 )
+# print(token_ids_to_text(token_ids, tokenizer))
+
+text_2 = (
+    "Is the following text 'spam'? Answer with 'yes' or 'no':"
+    " 'You are a winner you have been specially"
+    " selected to receive $1000 cash or a $2000 award.'"
+)
+token_ids = generate_text_simple(
+    model=model,
+    idx=text_to_token_ids(text_2, tokenizer),
+    max_new_tokens=23,
+    context_size=BASE_CONFIG['context_length'],
+)
 print(token_ids_to_text(token_ids, tokenizer))
