@@ -197,3 +197,17 @@ for input_batch, target_batch in train_loader:
 
 
 CHOOSE_MODEL = "gpt2-small (124M)"
+INPUT_PROMPT = "Every effort moves"
+BASE_CONFIG = {
+    "vocab_size": 50257, # 词汇表大小
+    "context_length": 1024, # 上下文长度
+    "drop_rate": 0.0, # dropout率
+    "qkv_bias": True # 查询-键-值偏置
+}
+model_configs = {
+    "gpt2-small(124M)":{"emb_dim": 768, "n_layers": 12, "n_heads": 12},
+    "gpt2-medium(355M)":{"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
+    "gpt2-large(774M)":{"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
+    "gpt2-xl(1558M)":{"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
+}
+BASE_CONFIG.update(model_configs[CHOOSE_MODEL])
