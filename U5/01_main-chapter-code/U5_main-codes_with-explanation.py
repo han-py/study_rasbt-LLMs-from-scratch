@@ -832,10 +832,10 @@ print("Token embedding weight tensor dimensions:", params["wte"].shape)
 # 不同 GPT-2 尺寸对应不同的隐藏维度、层数和注意力头数。
 # 这里只是定义映射，后面通过 model_name 选择其中一种配置。
 model_configs = {
-    "gpt2-small(124M)":{"emb_dim": 768, "n_layers": 12, "n_heads": 12},
-    "gpt2-medium(355M)":{"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
-    "gpt2-large(774M)":{"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
-    "gpt2-xl(1558M)":{"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
+    "gpt2-small (124M)":{"emb_dim": 768, "n_layers": 12, "n_heads": 12},
+    "gpt2-medium (355M)":{"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
+    "gpt2-large (774M)":{"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
+    "gpt2-xl (1558M)":{"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
 }
 
 model_name = "gpt2-small(124M)"
