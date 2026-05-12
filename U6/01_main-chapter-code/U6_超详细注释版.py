@@ -1497,6 +1497,563 @@ print(f"Initial Validation loss: {val_loss:.3f}")
 print(f"Initial Test loss: {test_loss:.3f}")
 print(f"💡 Expected: ~0.693 (random guessing level)")
 
+
+# ============================================================================
+# 🏋️ 第八部分：微调模型进行垃圾信息分类
+# ============================================================================
+# 代码清单 6-10：训练分类器
+#
+# 🎯 目标：通过微调让模型学会区分垃圾邮件和正常邮件
+#
+# 📋 训练流程：
+#   1. 前向传播：计算预测和损失
+#   2. 反向传播：计算梯度
+#   3. 参数更新：优化器调整权重
+#   4. 定期评估：监控训练进度
+#
+# 🔑 关键概念：
+#   - Epoch（轮次）：遍历整个训练集一次
+#   - Batch（批次）：一次处理的样本子集
+#   - Step（步数）：处理一个批次
+#   - Learning Rate（学习率）：参数更新的步长
+# ============================================================================
+
+def train_classifier_simple(
+        model, train_loader, val_loader, optimizer, device,
+        num_epochs, eval_freq, eval_iter):
+    """
+    简单的分类器训练函数
+    
+    工作流程：
+    对于每个 epoch：
+      对于每个批次：
+        1. 清零梯度
+        2. 前向传播（计算损失）
+        3. 反向传播（计算梯度）
+        4. 更新参数
+        5. 定期评估
+      计算 epoch 结束时的准确率
+    
+    参数:
+        model: 要训练的模型
+        train_loader: 训练数据加载器
+        val_loader: 验证数据加载器
+        optimizer: 优化器（如 Adam）
+        device: 计算设备（CPU/GPU）
+        num_epochs: 训练轮数（遍历整个数据集的次数）
+        eval_freq: 评估频率（每多少个 step 评估一次）
+        eval_iter: 评估时使用的批次数量
+    
+    返回:
+        train_losses: 训练损失列表（记录每次评估的损失）
+        val_losses: 验证损失列表
+        train_accs: 训练准确率列表（每个 epoch 结束时的准确率）
+        val_accs: 验证准确率列表
+        examples_seen: 看到的样本总数
+    
+    类比：就像学生学习备考
+         - epoch: 复习一遍所有课本
+         - batch: 每次复习一章
+         - eval_freq: 每复习几章做一次小测
+         - 最终考试：epoch 结束时的大测
+    """
+    # 📊 初始化跟踪列表，用于记录训练过程中的指标
+    train_losses = []  # 训练损失
+    val_losses = []    # 验证损失
+    train_accs = []    # 训练准确率
+    val_accs = []      # 验证准确率
+    
+    # 🔢 初始化计数器
+    examples_seen = 0  # 已看到的样本总数
+    global_step = -1   # 全局步数（从 -1 开始，因为后面会先 +1）
+    
+    print(f"\n🏋️ Starting training for {num_epochs} epochs...")
+    print(f"   Training batches: {len(train_loader)}")
+    print(f"   Validation batches: {len(val_loader)}")
+    print(f"   Eval frequency: every {eval_freq} steps")
+    print("-" * 60)
+
+    # 🔄 主训练循环：遍历所有 epoch
+    for epoch in range(num_epochs):
+        # 📝 设置模型为训练模式
+        # train() 会启用 dropout 等训练特定行为
+        model.train()
+        
+        print(f"\n📚 Epoch {epoch+1}/{num_epochs}")
+        
+        # 📦 遍历训练数据的所有批次
+        for input_batch, target_batch in train_loader:
+            # 🧹 步骤1：清零梯度
+            # 为什么需要清零？
+            # - PyTorch 默认会累积梯度
+            # - 如果不清零，梯度会累加上一次的
+            # - 这会导致错误的更新方向
+            optimizer.zero_grad()
+            
+            # 🔮 步骤2：计算当前批次的损失
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            # loss 是一个标量张量，例如：tensor(0.6931)
+            
+            # ⬅️ 步骤3：反向传播：计算梯度
+            # backward() 会自动计算所有 requires_grad=True 的参数的梯度
+            # 梯度存储在 param.grad 中
+            loss.backward()
+            
+            # ✏️ 步骤4：更新模型参数
+            # optimizer.step() 会根据梯度和学习率更新参数
+            # 公式：param = param - learning_rate * gradient
+            optimizer.step()
+            
+            # 📊 步骤5：更新计数器
+            examples_seen += input_batch.shape[0]  # 累加已见样本数
+            global_step += 1  # 全局步数递增
+
+            # 📈 步骤6：定期评估模型性能
+            # 每隔 eval_freq 个 step 评估一次
+            if global_step % eval_freq == 0:
+                # 计算当前的训练损失和验证损失
+                train_loss, val_loss = evaluate_model(
+                    model, train_loader, val_loader, device, eval_iter
+                )
+                
+                # 记录损失
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                
+                # 打印进度
+                print(f"  Step {global_step:06d}: "
+                      f"Train Loss {train_loss:.3f}, "
+                      f"Val Loss {val_loss:.3f}"
+                )
+
+        # 🏁 每个 epoch 结束后计算准确率
+        train_accuracy = calc_accuracy_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_accuracy = calc_accuracy_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+
+        # 打印 epoch 结果
+        print(f"  ✅ Epoch {epoch+1} Complete:")
+        print(f"     Training accuracy: {train_accuracy * 100:.2f}%")
+        print(f"     Validation accuracy: {val_accuracy * 100:.2f}%")
+        
+        # 记录准确率
+        train_accs.append(train_accuracy)
+        val_accs.append(val_accuracy)
+
+    print("-" * 60)
+    print(f"✅ Training completed!")
+    print(f"   Total examples seen: {examples_seen:,}")
+    print(f"   Final training accuracy: {train_accs[-1] * 100:.2f}%")
+    print(f"   Final validation accuracy: {val_accs[-1] * 100:.2f}%")
+
+    return train_losses, val_losses, train_accs, val_accs, examples_seen
+
+
+def evaluate_model(model, train_loader, val_loader, device, eval_iter):
+    """
+    评估模型在训练集和验证集上的损失
+    
+    参数:
+        model: 模型
+        train_loader: 训练数据加载器
+        val_loader: 验证数据加载器
+        device: 计算设备
+        eval_iter: 评估使用的批次数量
+    
+    返回:
+        tuple: (train_loss, val_loss) 训练损失和验证损失
+    
+    注意:
+        - 评估时会临时将模型设为 eval() 模式
+        - 评估完成后恢复为 train() 模式
+    """
+    # 📝 设置为评估模式（禁用 dropout）
+    model.eval()
+    
+    # 🔮 计算损失（不计算梯度）
+    with torch.no_grad():
+        train_loss = cala_loss_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_loss = cala_loss_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+    
+    # 📝 恢复训练模式
+    model.train()
+    
+    return train_loss, val_loss
+
+
+# ============================================================================
+# 🚀 第九部分：执行训练
+# ============================================================================
+
+import time  # 用于计时
+
+# ⏱️ 记录开始时间
+start_time = time.time()
+
+# 🎲 设置随机种子，确保结果可复现
+torch.manual_seed(123)
+
+# 🛠️ 创建优化器
+# Adam: Adaptive Moment Estimation
+# - 自适应学习率优化器
+# - 适合大多数深度学习任务
+# - 结合了 Momentum 和 RMSProp 的优点
+optimizer = torch.optim.Adam(
+    model.parameters(),  # 要优化的参数（只有 requires_grad=True 的会被更新）
+    lr=5e-5,             # 学习率：0.00005
+                         # - 较小的值避免破坏预训练权重
+                         # - 太大会导致震荡，太小会训练慢
+    weight_decay=0.1     # L2 正则化系数
+                         # - 防止过拟合
+                         # - 惩罚大的权重值
+)
+
+print(f"\n⚙️ Optimizer configuration:")
+print(f"   Type: Adam")
+print(f"   Learning rate: {5e-5}")
+print(f"   Weight decay: {0.1}")
+
+# 📅 设置训练轮数
+num_epochs = 5  # 训练 5 个 epoch
+# 每个 epoch = 遍历整个训练集一次
+# 5 个 epoch 通常足够微调任务
+
+print(f"   Epochs: {num_epochs}")
+
+# 🏋️ 执行训练
+train_losses, val_losses, train_accs, val_accs, examples_seen = \
+    train_classifier_simple(
+        model, train_loader, val_loader, optimizer, device,
+        num_epochs=num_epochs, 
+        eval_freq=50,   # 每 50 个 step 评估一次
+        eval_iter=5     # 评估时使用 5 个批次
+    )
+
+# ⏱️ 记录结束时间并计算训练时长
+end_time = time.time()
+execution_time_minutes = (end_time - start_time) / 60  # 转换为分钟
+
+print(f"\n⏱️ Training completed in {execution_time_minutes:.2f} minutes.")
+print(f"   That's {execution_time_minutes*60:.0f} seconds.")
+
+
+# ============================================================================
+# 📈 第十部分：可视化训练过程
+# ============================================================================
+# 代码清单 6-11：绘制分类损失和准确率曲线
+#
+# 🎯 目标：通过可视化了解训练过程中的变化趋势
+#
+# 📊 可视化的作用：
+#   - 检测过拟合（训练 loss ↓，验证 loss ↑）
+#   - 检测欠拟合（训练 loss 不下降）
+#   - 判断是否需要更多训练
+#   - 比较不同超参数的效果
+#
+# 📉 理想的曲线：
+#   - 训练损失：持续下降
+#   - 验证损失：下降后趋于平稳
+#   - 两者差距不大（不过拟合）
+# ============================================================================
+
+import matplotlib.pyplot as plt  # Python 的绘图库
+
+def plot_values(epochs_seen, examples_seen, train_values, val_values, label="loss"):
+    """
+    绘制训练和验证指标随时间的变化曲线
+    
+    参数:
+        epochs_seen: epoch 数量数组（x 轴）
+        examples_seen: 看到的样本数量数组（第二 x 轴）
+        train_values: 训练指标值列表（y 轴）
+        val_values: 验证指标值列表（y 轴）
+        label: 指标名称（"loss" 或 "accuracy"）
+    
+    返回:
+        None（直接显示图形）
+    
+    图形特点：
+        - 双 x 轴：上轴显示样本数，下轴显示 epoch
+        - 两条线：实线=训练，虚线=验证
+        - 自动保存为 PDF 文件
+    """
+    # 🎨 步骤1：创建图形和坐标轴
+    # figsize=(5, 3) 设置图形大小（宽 5 英寸，高 3 英寸）
+    fig, ax1 = plt.subplots(figsize=(5, 3))
+    
+    # 📉 步骤2：绘制训练集和验证集指标与 epoch 的关系
+    # ax1.plot(x, y, ...) 绘制折线图
+    ax1.plot(
+        epochs_seen,           # x 轴：epoch 数量
+        train_values,          # y 轴：训练指标值
+        label=f"Training {label}"  # 图例标签
+    )
+    ax1.plot(
+        epochs_seen,           # x 轴：epoch 数量
+        val_values,            # y 轴：验证指标值
+        linestyle="-.",        # 线型：点划线（区分训练和验证）
+        label=f"Validation {label}"  # 图例标签
+    )
+    
+    # 🏷️ 步骤3：设置轴标签和图例
+    ax1.set_xlabel("Epochs")  # x 轴标签
+    ax1.set_ylabel(label.capitalize())  # y 轴标签（首字母大写）
+    ax1.legend()  # 显示图例（自动选择最佳位置）
+    
+    # 🔄 步骤4：创建第二个 x 轴，显示看到的样本数量
+    # twiny() 创建一个共享 y 轴但独立 x 轴的坐标系
+    ax2 = ax1.twiny()
+    
+    # 绘制一条不可见的线，仅用于对齐刻度
+    # alpha=0 表示完全透明（看不见）
+    ax2.plot(examples_seen, train_values, alpha=0)
+    ax2.set_xlabel("Examples seen")  # 第二个 x 轴标签
+    
+    # 📐 步骤5：自动调整布局，避免标签重叠
+    fig.tight_layout()
+    
+    # 💾 步骤6：保存图形为 PDF 文件
+    plt.savefig(f"{label}-plot.pdf", dpi=300, bbox_inches='tight')
+    print(f"💾 Saved: {label}-plot.pdf")
+    
+    # 👁️ 步骤7：显示图形
+    plt.show()
+
+
+# 📉 准备损失曲线的绘图数据
+# torch.linspace(start, end, steps) 生成均匀分布的数字
+# 例如：linspace(0, 5, 10) → [0, 0.56, 1.11, ..., 5]
+epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
+examples_seen_tensor = torch.linspace(0, examples_seen, len(train_losses))
+
+print("\n📈 Plotting training curves...")
+
+# 绘制损失曲线
+plot_values(
+    epochs_tensor, 
+    examples_seen_tensor, 
+    train_losses,  # 训练损失列表
+    val_losses,    # 验证损失列表
+    label="loss"
+)
+
+# 📈 准备准确率曲线的绘图数据
+epochs_tensor = torch.linspace(0, num_epochs, len(train_accs))
+examples_seen_tensor = torch.linspace(0, examples_seen, len(train_accs))
+
+# 绘制准确率曲线
+plot_values(
+    epochs_tensor, 
+    examples_seen_tensor, 
+    train_accs,  # 训练准确率列表
+    val_accs,    # 验证准确率列表
+    label="accuracy"
+)
+
+print("✅ Plots generated successfully!")
+
+
+# ============================================================================
+# 🧪 第十一部分：最终评估
+# ============================================================================
+
+print("\n🧪 Final evaluation on full datasets...")
+
+# 📊 在完整数据集上评估最终模型性能（不使用 num_batches 限制）
+train_accuracy = calc_accuracy_loader(train_loader, model, device)
+val_accuracy = calc_accuracy_loader(val_loader, model, device)
+test_accuracy = calc_accuracy_loader(test_loader, model, device)
+
+print(f"\n🏆 Final Results:")
+print(f"   Training accuracy: {train_accuracy * 100:.2f}%")
+print(f"   Validation accuracy: {val_accuracy * 100:.2f}%")
+print(f"   Test accuracy: {test_accuracy * 100:.2f}%")
+
+# 💡 结果解读：
+# - 训练准确率 > 验证准确率：可能存在轻微过拟合
+# - 三者接近：模型泛化能力好
+# - 测试准确率应该在 90% 以上（对于这个任务）
+print(f"\n💡 Interpretation:")
+if test_accuracy > 0.9:
+    print(f"   ✅ Excellent! Test accuracy > 90%")
+elif test_accuracy > 0.8:
+    print(f"   👍 Good! Test accuracy > 80%")
+else:
+    print(f"   ⚠️ Consider training for more epochs or tuning hyperparameters")
+
+
+# ============================================================================
+# 📱 第十二部分：实际应用 - 使用模型对新文本进行分类
+# ============================================================================
+# 代码清单 6-12：分类新文本
+#
+# 🎯 目标：将训练好的模型应用于实际场景
+#
+# 💡 应用场景：
+#   - 自动过滤垃圾邮件
+#   - 实时短信分类
+#   - 集成到应用程序中
+# ============================================================================
+
+def classify_review(text, model, tokenizer, device, max_length=None, pad_token_id=50256):
+    """
+    对单条文本进行分类（垃圾邮件检测）
+    
+    工作流程：
+    1. 分词：文本 → token IDs
+    2. 截断：如果太长，截取前面部分
+    3. 填充：如果太短，补充 padding
+    4. 前向传播：获取预测结果
+    5. 返回分类标签
+    
+    参数:
+        text (str): 输入文本字符串
+        model: 训练好的分类模型
+        tokenizer: 分词器
+        device: 计算设备
+        max_length (int): 最大序列长度
+        pad_token_id (int): 填充 token 的 ID（默认 50256）
+    
+    返回:
+        str: "spam" 或 "not spam (ham)"
+    
+    示例:
+        >>> classify_review("You won $1000!", model, tokenizer, device, 120)
+        'spam'
+        >>> classify_review("Hey, how are you?", model, tokenizer, device, 120)
+        'not spam (ham)'
+    """
+    # 📝 步骤1：设置模型为评估模式
+    model.eval()
+
+    # 🔤 步骤2：分词
+    # 将文本转换为 token IDs
+    input_ids = tokenizer.encode(text)
+    # 例如："Hello world" → [15496, 995]
+    
+    # 📏 获取模型支持的最大上下文长度
+    # pos_emb.weight.shape[0] = 1024（GPT-2 的最大序列长度）
+    supported_context_length = model.pos_emb.weight.shape[0]
+
+    # ✂️ 步骤3：截断过长的序列
+    # 取 max_length 和模型支持长度的较小值
+    # 确保不超过模型的处理能力
+    input_ids = input_ids[:min(max_length, supported_context_length)]
+    # 例如：如果有 200 个 tokens，max_length=120
+    #      → 只保留前 120 个
+
+    # 🔲 步骤4：填充到指定长度
+    # 在末尾添加 padding tokens，使所有输入长度一致
+    # 例如：有 50 个 tokens，max_length=120
+    #      → 添加 70 个 padding tokens
+    input_ids += [pad_token_id] * (max_length - len(input_ids))
+
+    # 🔄 步骤5：转换为张量并移动到设备
+    input_tensor = torch.tensor(
+        input_ids, device=device
+    ).unsqueeze(0)  # 添加 batch 维度：[seq_len] → [1, seq_len]
+    # Shape: (1, max_length)
+
+    # 🔮 步骤6：前向传播获取预测结果
+    with torch.no_grad():  # 推理时不需要计算梯度
+        logits = model(input_tensor)[:, -1, :]
+    # logits Shape: (1, 2)
+    # 取最后一个 token 的输出
+
+    # 🏆 步骤7：获取预测类别
+    # argmax 返回最大值的索引（0 或 1）
+    # .item() 将单元素张量转换为 Python 整数
+    predicted_label = torch.argmax(logits, dim=-1).item()
+
+    # 📝 步骤8：返回分类结果
+    if predicted_label == 1:
+        return "spam"  # 垃圾邮件
+    else:
+        return "not spam (ham)"  # 正常邮件
+
+
+# 🧪 测试 1：典型的垃圾邮件
+print("\n📱 Testing classification on new texts...")
+text_1 = (
+    "You have a winner you have been specially"
+    " selected to receive $1000 cash or a $2000 award."
+)
+print(f"\nText 1: {text_1}")
+result_1 = classify_review(
+    text_1, model, tokenizer, device, 
+    max_length=train_dataset.max_length
+)
+print(f"Prediction: {result_1}")
+print(f"Expected: spam ✅")
+
+# 🧪 测试 2：正常的短信
+text_2 = (
+    "Hey, just wanted to check if we're still on"
+    " for dinner tonight? Let me know!"
+)
+print(f"\nText 2: {text_2}")
+result_2 = classify_review(
+    text_2, model, tokenizer, device,
+    max_length=train_dataset.max_length
+)
+print(f"Prediction: {result_2}")
+print(f"Expected: not spam (ham) ✅")
+
+
+# ============================================================================
+# 💾 第十三部分：保存和加载模型
+# ============================================================================
+
+# 💾 保存模型权重
+print("\n💾 Saving model...")
+torch.save(model.state_dict(), "review_classifier.pth")
+print(f"✅ Model saved to 'review_classifier.pth'")
+print(f"   File size: {os.path.getsize('review_classifier.pth') / 1e6:.2f} MB")
+
+# 📥 加载模型（示例代码，已注释）
+# 使用时取消注释以下两行
+# print("\n📥 Loading model...")
+# model_state_dict = torch.load("review_classifier.pth", map_location=device)
+# model.load_state_dict(model_state_dict)
+# print("✅ Model loaded successfully!")
+
+# ⚠️ 注意：
+# 1. 加载前需要先创建相同结构的模型实例
+# 2. map_location 指定加载到哪介设备（CPU/GPU）
+# 3. state_dict() 只保存权重，不保存模型结构
+
+print("\n" + "="*60)
+print("🎉 CHAPTER 6 COMPLETE!")
+print("="*60)
+print("\n📚 Summary:")
+print("   ✅ Data preparation and balancing")
+print("   ✅ Dataset and DataLoader creation")
+print("   ✅ GPT-2 model loading and modification")
+print("   ✅ Model training and evaluation")
+print("   ✅ Visualization of training progress")
+print("   ✅ Real-world application")
+print("   ✅ Model saving and loading")
+print("\n🎯 Key Takeaways:")
+print("   • Transfer learning saves time and data")
+print("   • Fine-tuning only a few layers is effective")
+print("   • Balanced datasets improve fairness")
+print("   • Monitoring both loss and accuracy is important")
+print("\n🚀 Next Steps:")
+print("   • Try different model sizes (medium, large)")
+print("   • Experiment with learning rates")
+print("   • Add more data augmentation")
+print("   • Deploy the model as a web service")
+print("="*60)
+
 # ============================================================================
 # 📦 模型组件类定义（来自 U4/U5 章节）
 # ============================================================================
