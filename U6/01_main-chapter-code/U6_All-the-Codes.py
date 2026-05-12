@@ -630,6 +630,64 @@ with torch.no_grad(): # 禁用梯度以提高效率，因为我们尚未进行�
     test_loss = cala_loss_loader(
         test_loader, model, device, num_batches=5
     )
-print(f"Training loss: {train_loss:.3f}")
-print(f"Validation loss: {val_loss:.3f}")
-print(f"Test loss: {test_loss:.3f}")
+# print(f"Training loss: {train_loss:.3f}")
+# print(f"Validation loss: {val_loss:.3f}")
+# print(f"Test loss: {test_loss:.3f}")
+
+
+# 代码清单 6-10 微调模型进行垃圾信息分类
+def train_classifier_simple(
+        model, train_loader, val_loader, optimizer, device,
+        num_epochs, eval_freq, eval_iter):
+    train_losses, val_losses, train_accs, val_accs = [], [], [], [] # 初始化列表以跟踪损失和所见样本
+    examples_seen, global_step = 0, -1
+
+    for epoch in range(num_epochs): # 主训练循环
+        model.train() #设置模型为训练模式
+        for input_batch, target_batch in train_loader:
+            optimizer.zero_grad() # 重置上一次批次迭代的损失梯度
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            loss.backward() # 计算损失梯度
+            optimizer.step() # 使用损失梯度更新模型权重
+            examples_seen += input_batch.shape[0] # 新设置：跟踪样本而不是词元
+            global_step += 1
+
+            # 可选的评估步骤
+            if global_step % eval_freq == 0:
+                train_loss, val_loss = evaluate_model(
+                    model, train_loader, val_loader, device, eval_iter
+                )
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                print(f"Ep {epoch+1}(Step {global_step:06d}):"
+                      f" Train Loss {train_loss:.3f}, "
+                      f"Val Loss {val_loss:.3f}"
+                )
+
+        # 每轮训练后计算准确率
+        train_accuracy = calc_accuracy_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_accuracy = calc_accuracy_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+
+        print(f"Training accuracy: {train_accuracy * 100:.2f}% | ", end= "")
+        print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+        val_accs.append(val_accuracy)
+
+    return train_losses, val_losses, train_accs, val_accs, examples_seen
+
+def evaluate_model(model, train_loader, val_loader, device, eval_iter):
+    model.eval()
+    with torch.no_grad():
+        train_loss = cala_loss_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_loss = cala_loss_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+    model.train()
+    return train_loss, val_loss
