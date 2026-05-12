@@ -677,6 +677,7 @@ def train_classifier_simple(
 
         print(f"Training accuracy: {train_accuracy * 100:.2f}% | ", end= "")
         print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+        train_accs.append(train_accuracy)
         val_accs.append(val_accuracy)
 
     return train_losses, val_losses, train_accs, val_accs, examples_seen
@@ -749,3 +750,10 @@ plot_values(
     epochs_tensor, examples_seen_tensor, train_accs, val_accs,
     label="accuracy"
 )
+
+train_accuracy = calc_accuracy_loader(train_loader, model, device)
+val_accuracy = calc_accuracy_loader(val_loader, model, device)
+test_accuracy = calc_accuracy_loader(test_loader, model, device)
+print(f"Training accuracy: {train_accuracy * 100:.2f}%")
+print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+print(f"Test accuracy: {test_accuracy * 100:.2f}%")
