@@ -506,4 +506,18 @@ token_ids = generate_text_simple(
     max_new_tokens=23,
     context_size=BASE_CONFIG['context_length'],
 )
-print(token_ids_to_text(token_ids, tokenizer))
+# print(token_ids_to_text(token_ids, tokenizer))
+
+# print(model)
+
+
+for param in model.parameters():
+    param.requires_grad = False
+
+# 代码清单 6-7 添加分类层
+torch.manual_seed(123)
+num_classes = 2
+model.out_head = torch.nn.Linear(
+    in_features=BASE_CONFIG["emb_dim"],
+    out_features=num_classes,
+)
