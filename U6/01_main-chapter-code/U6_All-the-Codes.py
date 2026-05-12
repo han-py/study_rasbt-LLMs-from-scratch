@@ -700,7 +700,7 @@ torch.manual_seed(123)
 optimizer = torch.optim.Adam(model.parameters(), lr=5e-5, weight_decay=0.1)
 num_epochs = 5
 
-train_loss, val_loss, train_acc, val_acc, examples_seen = \
+train_losses, val_losses, train_acc, val_acc, examples_seen = \
     train_classifier_simple(
     model, train_loader, val_loader, optimizer, device,
     num_epochs=num_epochs, eval_freq=50, eval_iter=5
@@ -709,3 +709,35 @@ train_loss, val_loss, train_acc, val_acc, examples_seen = \
 end_time = time.time()
 execution_time = (end_time - start_time) / 60
 print(f"Training completed in {execution_time:.2f} minutes.")
+
+
+# 代码清单 6-11 绘制分类损失曲线
+import matplotlib.pyplot as plt
+
+def plot_values(
+        epochs_seen, examples_seen, train_values, val_values,
+        label="loss"):
+    fig, ax1 = plt.subplots(figsize=(5, 3))
+
+    # 绘制训练集损失和验证集损失与轮数的关联
+    ax1.plot(epochs_seen, train_values, label=f"Training {label}")
+    ax1.plot(
+        epochs_seen, val_values, linestyle="-.",
+        label=f"Validation {label}"
+    )
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel(label.capitalize())
+    ax1.legend()
+
+    ax2 = ax1.twiny() #为所见样本创建第二个 x 轴
+    ax2.plot(examples_seen, train_values, alpha=0) # 不可见的图形用于对齐刻度
+    ax2.set_xlabel("Examples seen")
+
+    fig.tight_layout() # 调整布局以腾出空间
+    plt.savefig(f"{label}-plot.pdf")
+    plt.show()
+
+epochs_tensor = torch.linspace(0, num_epochs, len(train_loss))
+examples_seen_tensor = torch.linspace(0, examples_seen, len(train_losses))
+
+plot_values(epochs_tensor, examples_seen_tensor, train_losses, val_losses)
