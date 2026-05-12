@@ -700,7 +700,7 @@ torch.manual_seed(123)
 optimizer = torch.optim.Adam(model.parameters(), lr=5e-5, weight_decay=0.1)
 num_epochs = 5
 
-train_losses, val_losses, train_acc, val_acc, examples_seen = \
+train_losses, val_losses, train_accs, val_accs, examples_seen = \
     train_classifier_simple(
     model, train_loader, val_loader, optimizer, device,
     num_epochs=num_epochs, eval_freq=50, eval_iter=5
@@ -741,3 +741,11 @@ epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
 examples_seen_tensor = torch.linspace(0, examples_seen, len(train_losses))
 
 plot_values(epochs_tensor, examples_seen_tensor, train_losses, val_losses)
+
+epochs_tensor = torch.linspace(0, num_epochs, len(train_accs))
+examples_seen_tensor = torch.linspace(0, examples_seen, len(train_accs))
+
+plot_values(
+    epochs_tensor, examples_seen_tensor, train_accs, val_accs,
+    label="accuracy"
+)
