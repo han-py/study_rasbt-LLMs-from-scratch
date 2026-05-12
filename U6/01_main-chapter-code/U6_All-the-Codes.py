@@ -550,7 +550,7 @@ with torch.no_grad():
 
 
 # 代码清单 6-8 计算分类准确率
-def cala_accuracy_loader(data_loader, model, device, num_batches=None):
+def calc_accuracy_loader(data_loader, model, device, num_batches=None):
     model.eval()
     correct_predictions, num_examples = 0, 0
 
@@ -574,3 +574,21 @@ def cala_accuracy_loader(data_loader, model, device, num_batches=None):
         else :
             break
     return  correct_predictions / num_examples
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
+torch.manual_seed(123)
+train_accuracy = calc_accuracy_loader(
+    train_loader, model, device, num_batches=10
+)
+val_accuracy = calc_accuracy_loader(
+    val_loader, model, device, num_batches=10
+)
+test_accuracy = calc_accuracy_loader(
+    test_loader, model, device, num_batches=10
+)
+
+print(f"Training accuracy: {train_accuracy * 100:.2f}%")
+print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+print(f"Test accuracy: {test_accuracy * 100:.2f}%")
