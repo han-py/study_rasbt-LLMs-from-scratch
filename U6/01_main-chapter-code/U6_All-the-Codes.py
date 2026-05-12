@@ -619,3 +619,17 @@ def cala_loss_loader(data_loader, model, device, num_batches=None):
         else:
             break
     return total_loss / num_batches
+
+with torch.no_grad(): # 禁用梯度以提高效率，因为我们尚未进行训练
+    train_loss = cala_loss_loader(
+        train_loader, model, device, num_batches=5
+    )
+    val_loss = cala_loss_loader(
+        val_loader, model, device, num_batches=5
+    )
+    test_loss = cala_loss_loader(
+        test_loader, model, device, num_batches=5
+    )
+print(f"Training loss: {train_loss:.3f}")
+print(f"Validation loss: {val_loss:.3f}")
+print(f"Test loss: {test_loss:.3f}")
