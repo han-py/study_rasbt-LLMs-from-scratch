@@ -521,3 +521,13 @@ model.out_head = torch.nn.Linear(
     in_features=BASE_CONFIG["emb_dim"],
     out_features=num_classes,
 )
+
+for param in model.trf_blocks[-1].parameters():
+    param.requires_grad = True
+for param in model.final_norm.parameters():
+    param.requires_grad = True
+
+inputs = tokenizer.encode("Do you have time")
+inputs = torch.tensor(inputs).unsqueeze(0)
+# print("Inputs:", inputs)
+# print("Inputs dimensions:", inputs.shape) # 形状： (batch_size, num_tokens)
