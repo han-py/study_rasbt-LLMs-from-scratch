@@ -1,0 +1,872 @@
+# ============================================================================
+# 第六章：使用 GPT 模型进行文本分类（垃圾邮件检测）
+# ============================================================================
+# 本章目标：学习如何将预训练的 GPT 模型微调为文本分类器
+# 应用场景：自动识别垃圾短信（spam）和正常短信（ham）
+# ============================================================================
+
+# -------------------------- 第一部分：数据准备 --------------------------
+# 代码清单 6-1 下载和解压数据集
+import urllib.request  # 用于从网络下载文件
+import os  # 操作系统接口，用于文件操作
+import zipfile  # 用于处理 ZIP 压缩文件
+from pathlib import Path  # 提供面向对象的文件系统路径操作
+
+# 注意：以下导入在当前代码中未使用，可能是从模板复制时遗留的
+from datasets.utils import extract
+from flatbuffers import encode
+from jinja2 import optimizer
+from pandas.core.common import random_state
+from patsy import origin
+from sipbuild.generator import outputs
+
+# 数据集下载地址（UCI 机器学习仓库的 SMS 垃圾邮件数据集）
+url = "http://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip"
+zip_path = "sms_spam_collection.zip"  # 下载的 ZIP 文件名
+extracted_path = "sms_spam_collection"  # 解压后的文件夹名
+data_file_path = Path(extracted_path) / "SMSSpamCollection.tsv"  # 最终的数据文件路径
+
+def download_and_unzip_spam_data(
+        url, zip_path, extracted_path, data_file_path
+):
+    """
+    下载并解压垃圾邮件数据集
+    
+    参数:
+        url: 数据集下载链接
+        zip_path: ZIP 文件保存路径
+        extracted_path: 解压目录
+        data_file_path: 最终数据文件路径
+    """
+    # 检查数据文件是否已存在，避免重复下载
+    if data_file_path.exists():
+        print(f"{data_file_path} already exists. Skipping download and extraction.")
+        return
+
+    # 步骤1：从 URL 下载 ZIP 文件
+    with urllib.request.urlopen(url) as response: # 打开 URL 连接
+        with open(zip_path, 'wb') as out_file:  # 以二进制写入模式打开本地文件
+            out_file.write(response.read())  # 将下载的内容写入文件
+
+    # 步骤2：解压 ZIP 文件到指定目录
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref: # 以读取模式打开 ZIP 文件
+        zip_ref.extractall(extracted_path)  # 解压所有文件到目标目录
+
+    # 步骤3：重命名文件，添加 .tsv 扩展名（制表符分隔值文件）
+    original_file_path = Path(extracted_path) / "SMSSpamCollection"
+    os.rename(original_file_path, data_file_path) # 重命名文件
+    print(f"File downloaded and saved as {data_file_path}")
+
+# 执行下载和解压操作
+download_and_unzip_spam_data(url, zip_path, extracted_path, data_file_path)
+
+
+# 使用 pandas 读取 TSV 文件（制表符分隔）
+import pandas as pd
+df = pd.read_csv(
+    data_file_path,
+    sep="\t",  # 指定分隔符为制表符
+    header=None,  # 文件没有表头行
+    names=["Label", "Text"]  # 手动指定列名：标签和文本内容
+)
+# print(df)  # 打印整个数据集（已注释，数据量较大）
+# print(df.Label.value_counts())  # 统计各类别数量（已注释）
+# 提示：原始数据集中 ham（正常邮件）约 4800 条，spam（垃圾邮件）约 700 条，存在类别不平衡
+
+
+# 代码清单 6-2 创建一个平衡的数据集
+# 问题：原始数据集中正常邮件远多于垃圾邮件，会导致模型偏向预测"正常"
+# 解决方案：随机采样正常邮件，使其数量与垃圾邮件相等
+def create_balanced_dataset(df):
+    """
+    创建平衡数据集，使两类样本数量相等
+    
+    参数:
+        df: 原始 DataFrame
+    返回:
+        balanced_df: 平衡后的 DataFrame
+    """
+    num_spam = df[df["Label"] == "spam"].shape[0]  # 统计"垃圾信息"的样本数量
+    
+    # 从正常邮件中随机抽取与垃圾邮件相同数量的样本
+    # random_state=123 确保每次运行结果可复现
+    ham_subset = df[df["Label"] == "ham"].sample(
+        num_spam,
+        random_state=123
+    )
+    
+    # 将抽样的正常邮件与所有垃圾邮件合并，形成平衡数据集
+    balanced_df = pd.concat([
+        ham_subset, df[df["Label"] == "spam"]
+    ])
+    return balanced_df
+
+# 创建平衡数据集
+balanced_df = create_balanced_dataset(df)
+# print(balanced_df["Label"].value_counts())  # 验证平衡性（已注释）
+# 现在 ham 和 spam 各约 700 条
+
+# 将文本标签转换为数值标签：ham→0, spam→1
+# 原因：机器学习模型只能处理数值，不能直接处理字符串
+balanced_df["Label"] = balanced_df["Label"].map({"ham": 0, "spam": 1})
+
+
+# 代码清单 6-3 划分数据集
+# 将数据分为三部分：训练集（70%）、验证集（10%）、测试集（20%）
+# - 训练集：用于模型学习
+# - 验证集：用于训练过程中监控模型性能，调整超参数
+# - 测试集：用于最终评估模型在未见数据上的表现
+def random_split(df, train_frac, validation_frac):
+    """
+    随机划分数据集为训练集、验证集和测试集
+    
+    参数:
+        df: 输入 DataFrame
+        train_frac: 训练集比例（如 0.7 表示 70%）
+        validation_frac: 验证集比例（如 0.1 表示 10%）
+    返回:
+        train_df, validation_df, test_df: 三个子集
+    """
+    # 打乱数据顺序，避免数据按某种规律排列影响训练
+    # frac=1 表示返回全部数据（但顺序打乱）
+    # reset_index(drop=True) 重置索引，drop=True 表示丢弃旧索引
+    df = df.sample(
+        frac=1, random_state=123
+    ).reset_index(drop=True)
+    
+    # 计算划分点的索引位置
+    train_end = int(len(df) * train_frac)  # 训练集结束位置
+    validation_end = train_end + int(len(df) * validation_frac)  # 验证集结束位置
+
+    # 切片获取三个子集
+    train_df = df[:train_end]  # 前 70% 作为训练集
+    validation_df = df[train_end:validation_end]  # 中间 10% 作为验证集
+    test_df = df[validation_end:]  # 剩余 20% 作为测试集
+
+    return train_df, validation_df, test_df
+
+# 以下代码用于首次运行时生成 CSV 文件（已注释，因为文件已存在）
+# train_df, validation_df, test_df = random_split(
+#     balanced_df, 0.7, 0.1
+# )  # 训练集70%，验证集10%，测试集自动为剩余的20%
+#
+# train_df.to_csv("train.csv", index=None)  # 保存训练集，不包含索引列
+# validation_df.to_csv("validation.csv", index=None)  # 保存验证集
+# test_df.to_csv("test.csv", index=None)  # 保存测试集
+
+
+import  tiktoken
+tokenizer = tiktoken.get_encoding("gpt2")
+# print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"}))
+
+
+# 代码清单 6-4 构建一个 PyTorch Dataset 类
+# Dataset 是 PyTorch 中用于管理数据的标准类
+# 我们需要自定义 SpamDataset 来处理短信分类任务
+torch.manual_seed(123)  # 设置随机种子，确保结果可复现
+import torch
+from torch.utils.data import Dataset
+
+class SpamDataset(Dataset):
+    def __init__(self, csv_file, tokenizer, max_length=None, pad_token_id=50256):
+        self.data = pd.read_csv(csv_file)
+        # 文本分词
+        self.encoded_texts = [
+            tokenizer.encode(text) for text in self.data["Text"]
+        ]
+
+        if max_length is None:
+            self.max_length = self._longest_encoded_length()
+        else:
+            self.max_length = max_length
+            # 如果序列长度超过 max_length，则进行截断
+            self.encoded_texts = [
+                encoded_text[:self.max_length]
+                for encoded_text in self.encoded_texts
+            ]
+
+        # 填充到最长序列的长度
+        self.encoded_texts = [
+            encoded_text + [pad_token_id] *
+            (self.max_length - len(encoded_text))
+            for encoded_text in self.encoded_texts
+        ]
+
+    def __getitem__(self, index):
+        encoded = self.encoded_texts[index]
+        label = self.data.iloc[index]["Label"]
+        return (
+            torch.tensor(encoded, dtype=torch.long),
+            torch.tensor(label, dtype=torch.long)
+        )
+
+    def __len__(self):
+        return len(self.data)
+
+    def _longest_encoded_length(self):
+        max_length = 0
+        for encoded_text in self.encoded_texts:
+            encoded_length = len(encoded_text)
+            if encoded_length > max_length:
+                max_length = encoded_length
+        return max_length
+
+train_dataset = SpamDataset(
+    csv_file="train.csv",
+    max_length=None,
+    tokenizer=tokenizer
+)
+# print(train_dataset.max_length)
+val_dataset = SpamDataset(
+    csv_file="validation.csv",
+    max_length=train_dataset.max_length,
+    tokenizer=tokenizer
+)
+test_dataset = SpamDataset(
+    csv_file="test.csv",
+    max_length=train_dataset.max_length,
+    tokenizer=tokenizer
+)
+
+
+# 代码清单 6-5 在PyTorch 中船舰数据加载器
+from torch.utils.data import DataLoader
+
+num_workers = 0 # 此设置确保了与大多数计算机的兼容性
+batch_size = 8
+torch.manual_seed(123)
+
+train_loader = DataLoader(
+    dataset=train_dataset,
+    batch_size=batch_size,
+    shuffle=True,
+    num_workers=num_workers,
+    drop_last= True,
+)
+val_loader = DataLoader(
+    dataset=val_dataset,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    drop_last= False,
+)
+test_loader = DataLoader(
+    dataset=test_dataset,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    drop_last= False,
+)
+
+for input_batch, target_batch in train_loader:
+    pass
+# print("Input batch dimensions:", input_batch.shape)
+# print("Target batch dimensions:", target_batch.shape)
+
+# print(f"{len(train_loader)} training batches")
+# print(f"{len(val_loader)} validation batches")
+# print(f"{len(test_loader)} test batches")
+
+
+CHOOSE_MODEL = "gpt2-small (124M)"
+INPUT_PROMPT = "Every effort moves"
+BASE_CONFIG = {
+    "vocab_size": 50257, # 词汇表大小
+    "context_length": 1024, # 上下文长度
+    "drop_rate": 0.0, # dropout率
+    "qkv_bias": True # 查询-键-值偏置
+}
+model_configs = {
+    "gpt2-small (124M)":{"emb_dim": 768, "n_layers": 12, "n_heads": 12},
+    "gpt2-medium (355M)":{"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
+    "gpt2-large (774M)":{"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
+    "gpt2-xl (1558M)":{"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
+}
+BASE_CONFIG.update(model_configs[CHOOSE_MODEL])
+
+
+# 代码清单 6-6 加载预训练的GPT模型
+from gpt_download import download_and_load_gpt2
+
+import torch.nn as nn
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
+        super().__init__()
+        assert d_out % num_heads == 0, "d_out must be divisible by num_heads"
+
+        self.d_out = d_out
+        self.num_heads = num_heads
+        self.head_dim = d_out // num_heads  # Reduce the projection dim to match desired output dim
+
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.out_proj = nn.Linear(d_out, d_out)  # Linear layer to combine head outputs
+        self.dropout = nn.Dropout(dropout)
+        self.register_buffer("mask", torch.triu(torch.ones(context_length, context_length), diagonal=1))
+
+    def forward(self, x):
+        b, num_tokens, d_in = x.shape
+
+        keys = self.W_key(x)  # Shape: (b, num_tokens, d_out)
+        queries = self.W_query(x)
+        values = self.W_value(x)
+
+        # We implicitly split the matrix by adding a `num_heads` dimension
+        # Unroll last dim: (b, num_tokens, d_out) -> (b, num_tokens, num_heads, head_dim)
+        keys = keys.view(b, num_tokens, self.num_heads, self.head_dim)
+        values = values.view(b, num_tokens, self.num_heads, self.head_dim)
+        queries = queries.view(b, num_tokens, self.num_heads, self.head_dim)
+
+        # Transpose: (b, num_tokens, num_heads, head_dim) -> (b, num_heads, num_tokens, head_dim)
+        keys = keys.transpose(1, 2)
+        queries = queries.transpose(1, 2)
+        values = values.transpose(1, 2)
+
+        # Compute scaled dot-product attention (aka self-attention) with a causal mask
+        attn_scores = queries @ keys.transpose(2, 3)  # Dot product for each head
+
+        # Original mask truncated to the number of tokens and converted to boolean
+        mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
+
+        # Use the mask to fill attention scores
+        attn_scores.masked_fill_(mask_bool, -torch.inf)
+
+        attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
+        attn_weights = self.dropout(attn_weights)
+
+        # Shape: (b, num_tokens, num_heads, head_dim)
+        context_vec = (attn_weights @ values).transpose(1, 2)
+
+        # Combine heads, where self.d_out = self.num_heads * self.head_dim
+        context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
+        context_vec = self.out_proj(context_vec)  # optional projection
+
+        return context_vec
+
+class LayerNorm(nn.Module):
+    def __init__(self, emb_dim):
+        super().__init__()
+        self.eps = 1e-5
+        self.scale = nn.Parameter(torch.ones(emb_dim))
+        self.shift = nn.Parameter(torch.zeros(emb_dim))
+
+    def forward(self, x):
+        mean = x.mean(dim = -1, keepdim = True)
+        var = x.var(dim = -1, keepdim = True, unbiased = False)
+        norm_x = (x - mean) / torch.sqrt(var + self.eps)
+        return self.scale * norm_x + self.shift
+
+class GELU(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return 0.5 * x * (1 + torch.tanh(
+            torch.sqrt(torch.tensor(2.0 / torch.pi)) * (x + 0.044715 * torch.pow(x, 3))
+        ))
+
+class FeedForward(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(cfg["emb_dim"], cfg["emb_dim"] * 4),
+            GELU(),
+            nn.Linear(cfg["emb_dim"] * 4, cfg["emb_dim"]),
+        )
+
+    def forward(self, x):
+        return self.layers(x)
+
+class TransformerBlock(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.att = MultiHeadAttention(
+            d_in = cfg["emb_dim"],
+            d_out = cfg["emb_dim"],
+            context_length = cfg["context_length"],
+            num_heads = cfg["n_heads"],
+            dropout = cfg["drop_rate"],
+            qkv_bias = cfg["qkv_bias"],
+        )
+        self.ff = FeedForward(cfg)
+        self.norm1 = LayerNorm(cfg["emb_dim"])
+        self.norm2 = LayerNorm(cfg["emb_dim"])
+        self.drop_shortcut = nn.Dropout(cfg["drop_rate"])
+
+    def forward(self, x):
+        # 在注意力块中添加快捷连接
+        shortcut = x
+        x = self.norm1(x)
+        x = self.att(x)
+        x = self.drop_shortcut(x)
+        x = shortcut + x  # 将原始输入添加回来
+
+        # 在前馈层中添加快捷链接
+        shortcut = x
+        x = self.norm2(x)
+        x = self.ff(x)
+        x = self.drop_shortcut(x)
+        x = shortcut + x
+        return x
+
+class GPTModel(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
+        self.pos_emb = nn.Embedding(cfg["context_length"], cfg["emb_dim"])
+        self.drop_emb = nn.Dropout(cfg["drop_rate"])
+
+        self.trf_blocks = nn.Sequential(
+            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])]
+        )
+        self.final_norm = LayerNorm(cfg["emb_dim"])
+        self.out_head = nn.Linear(
+            cfg["emb_dim"], cfg["vocab_size"], bias=False
+        )
+
+    def forward(self, in_dex):
+        batch_size, seq_len = in_dex.shape
+        tok_embeds = self.tok_emb(in_dex)
+
+        pos_embeds = self.pos_emb(
+            torch.arange(seq_len, device=in_dex.device)  # device 的设置允许我们在 CPU 或 GPU 上训练模型，具体取决于输入数据所在的设备
+        )
+        x = tok_embeds + pos_embeds
+        x = self.drop_emb(x)
+        x = self.trf_blocks(x)
+        x = self.final_norm(x)
+        logits = self.out_head(x)
+        return logits
+
+import numpy as np
+def assign(left, right):
+    if left.shape != right.shape:
+        raise ValueError(f"Shape mismatch.Left: {left.shape}, "
+                         "Right: {right.shape}"
+        )
+    return torch.nn.Parameter(torch.tensor(right))
+
+def load_weights_into_gpt(gpt, params): # 将模型的位置信息和词元嵌入权重设置为 params 中指定的值
+    gpt.pos_emb.weight = assign(gpt.pos_emb.weight, params["wpe"])
+    gpt.tok_emb.weight = assign(gpt.tok_emb.weight, params["wte"])
+
+    for b in range(len(params["blocks"])): # 遍历模型中的每一个 Transformer 块
+        q_w, k_w, v_w = np.split( # np.split 函数用于将注意力和偏置权重平均分为3个部分，分别用于查询组件、键组件和值组件
+            (params["blocks"][b]["attn"]["c_attn"])["w"], 3, axis=-1
+        )
+        gpt.trf_blocks[b].att.W_query.weight = assign(
+            gpt.trf_blocks[b].att.W_query.weight, q_w.T
+        )
+        gpt.trf_blocks[b].att.W_key.weight = assign(
+            gpt.trf_blocks[b].att.W_key.weight, k_w.T
+        )
+        gpt.trf_blocks[b].att.W_value.weight = assign(
+            gpt.trf_blocks[b].att.W_value.weight, v_w.T
+        )
+
+        q_b, k_b, v_b = np.split(
+            (params["blocks"][b]["attn"]["c_attn"])["b"], 3, axis=-1
+        )
+        gpt.trf_blocks[b].att.W_query.bias = assign(
+            gpt.trf_blocks[b].att.W_query.bias, q_b
+        )
+        gpt.trf_blocks[b].att.W_key.bias = assign(
+            gpt.trf_blocks[b].att.W_key.bias, k_b
+        )
+        gpt.trf_blocks[b].att.W_value.bias = assign(
+            gpt.trf_blocks[b].att.W_value.bias, v_b
+        )
+
+        gpt.trf_blocks[b].att.out_proj.weight = assign(
+            gpt.trf_blocks[b].att.out_proj.weight,
+            params["blocks"][b]["attn"]["c_proj"]["w"].T
+        )
+        gpt.trf_blocks[b].att.out_proj.bias = assign(
+            gpt.trf_blocks[b].att.out_proj.bias,
+            params["blocks"][b]["attn"]["c_proj"]["b"]
+        )
+        gpt.trf_blocks[b].ff.layers[0].weight = assign(
+            gpt.trf_blocks[b].ff.layers[0].weight,
+            params["blocks"][b]["mlp"]["c_fc"]["w"].T
+        )
+
+        gpt.trf_blocks[b].ff.layers[0].bias = assign(
+            gpt.trf_blocks[b].ff.layers[0].bias,
+            params["blocks"][b]["mlp"]["c_fc"]["b"]
+        )
+        gpt.trf_blocks[b].ff.layers[2].weight = assign(
+            gpt.trf_blocks[b].ff.layers[2].weight,
+            params["blocks"][b]["mlp"]["c_proj"]["w"].T
+        )
+        gpt.trf_blocks[b].ff.layers[2].bias = assign(
+            gpt.trf_blocks[b].ff.layers[2].bias,
+            params["blocks"][b]["mlp"]["c_proj"]["b"]
+        )
+
+        gpt.trf_blocks[b].norm1.scale = assign(
+            gpt.trf_blocks[b].norm1.scale,
+            params["blocks"][b]["ln_1"]["g"]
+        )
+        gpt.trf_blocks[b].norm1.shift = assign(
+            gpt.trf_blocks[b].norm1.shift,
+            params["blocks"][b]["ln_1"]["b"]
+        )
+        gpt.trf_blocks[b].norm2.scale = assign(
+            gpt.trf_blocks[b].norm2.scale,
+            params["blocks"][b]["ln_2"]["g"]
+        )
+        gpt.trf_blocks[b].norm2.shift = assign(
+            gpt.trf_blocks[b].norm2.shift,
+            params["blocks"][b]["ln_2"]["b"]
+        )
+
+        gpt.final_norm.scale = assign(gpt.final_norm.scale, params["g"])
+        gpt.final_norm.shift = assign(gpt.final_norm.shift, params["b"])
+        gpt.out_head.weight = assign(gpt.out_head.weight,params["wte"]) # OpenAI 的原始 GPT-2 模型在其输出层中复用了词元嵌入权重，以减少参数总数，这一概念被称为“权重绑定”
+
+model_size = CHOOSE_MODEL.split(" ")[-1].lstrip("(").rstrip(")")
+settings, params = download_and_load_gpt2(
+    model_size=model_size, models_dir="gpt2"
+)
+
+model = GPTModel(BASE_CONFIG)
+load_weights_into_gpt(model, params)
+model.eval()
+
+
+def generate_text_simple(model, idx,  # idx 是当前文本的索引数组，其形状为(batch, n_tokens)
+                         max_new_tokens, context_size):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]  # 将当前文本截断至支持的长度。如果大语言模型仅支持 5 个词元，但此时文本长度为 10，则只有最后 5 个词元会被用作输入文本
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        logits = logits[:, -1, :]  # 只关注最后一个输出的内容，因此形状会从 (batch, n_token, vocab_size) 变为 (batch, vocab_size)
+        probas = torch.softmax(logits, dim=-1)  # probas 的形状为 (batch, vocab_size)
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)  # idx_next 的形状为 (batch, 1)
+        idx = torch.cat((idx, idx_next), dim=1)  # 将计算出的下一个字符的索引添加到索引数组中，此时 idx 的形状会变为 (batch, n_tokens + 1)
+
+    return  idx
+
+def text_to_token_ids(text, tokenizer):
+    encoded = tokenizer.encode(text, allowed_special = {'<|endoftext|>'})
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)   # 使用 .unsqueeze(0) 添加 batch 维度
+    return encoded_tensor
+
+def token_ids_to_text(token_ids, tokenizer):
+    flat = token_ids.squeeze(0)    # 移除batch维度
+    return tokenizer.decode(flat.tolist())
+
+text_1 = "Every effort moves you"
+token_ids = generate_text_simple(
+    model=model,
+    idx=text_to_token_ids(text_1, tokenizer),
+    max_new_tokens=15,
+    context_size=BASE_CONFIG['context_length'],
+)
+# print(token_ids_to_text(token_ids, tokenizer))
+
+text_2 = (
+    "Is the following text 'spam'? Answer with 'yes' or 'no':"
+    " 'You are a winner you have been specially"
+    " selected to receive $1000 cash or a $2000 award.'"
+)
+token_ids = generate_text_simple(
+    model=model,
+    idx=text_to_token_ids(text_2, tokenizer),
+    max_new_tokens=23,
+    context_size=BASE_CONFIG['context_length'],
+)
+# print(token_ids_to_text(token_ids, tokenizer))
+
+# print(model)
+
+
+for param in model.parameters():
+    param.requires_grad = False
+
+# 代码清单 6-7 添加分类层
+torch.manual_seed(123)
+num_classes = 2
+model.out_head = torch.nn.Linear(
+    in_features=BASE_CONFIG["emb_dim"],
+    out_features=num_classes,
+)
+
+for param in model.trf_blocks[-1].parameters():
+    param.requires_grad = True
+for param in model.final_norm.parameters():
+    param.requires_grad = True
+
+inputs = tokenizer.encode("Do you have time")
+inputs = torch.tensor(inputs).unsqueeze(0)
+# print("Inputs:", inputs)
+# print("Inputs dimensions:", inputs.shape) # 形状： (batch_size, num_tokens)
+
+with torch.no_grad():
+    outputs = model(inputs)
+# print("Outputs:\n", outputs)
+# print("Outputs dimensions:", outputs.shape)
+
+# print("Last output token:", outputs[:, -1, :])
+
+# probas = torch.softmax(outputs[:, -1, :], dim=-1)
+# label = torch.argmax(probas)
+# print("Class label:", label.item())
+
+# logits = outputs[:, -1,:]
+# label = torch.argmax(logits)
+# print("Class label:", label.item())
+
+
+# 代码清单 6-8 计算分类准确率
+def calc_accuracy_loader(data_loader, model, device, num_batches=None):
+    model.eval()
+    correct_predictions, num_examples = 0, 0
+
+    if num_batches is None:
+        num_batches = len(data_loader)
+    else:
+        num_batches = min(num_batches, len(data_loader))
+    for i, (input_batch, target_batch) in enumerate(data_loader):
+        if i < num_batches :
+            input_batch = input_batch.to(device)
+            target_batch = target_batch.to(device)
+
+            with torch.no_grad():
+                logits = model(input_batch)[:, -1, :] #最后一个输出词元的logits
+            predicted_labels = torch.argmax(logits, dim=-1)
+
+            num_examples += predicted_labels.shape[0]
+            correct_predictions += (
+                (predicted_labels == target_batch).sum().item()
+            )
+        else :
+            break
+    return  correct_predictions / num_examples
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
+torch.manual_seed(123)
+train_accuracy = calc_accuracy_loader(
+    train_loader, model, device, num_batches=10
+)
+val_accuracy = calc_accuracy_loader(
+    val_loader, model, device, num_batches=10
+)
+test_accuracy = calc_accuracy_loader(
+    test_loader, model, device, num_batches=10
+)
+
+# print(f"Training accuracy: {train_accuracy * 100:.2f}%")
+# print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+# print(f"Test accuracy: {test_accuracy * 100:.2f}%")
+
+
+def calc_loss_batch(input_batch, target_batch, model, device):
+    input_batch = input_batch.to(device)
+    target_batch = target_batch.to(device)
+    logits = model(input_batch)[:, -1, :] # 最后一个输出词元的 logits
+    loss = torch.nn.functional.cross_entropy(logits, target_batch)
+    return loss
+
+# 代码清单 6-9 计算分类损失
+def cala_loss_loader(data_loader, model, device, num_batches=None):
+    total_loss = 0.
+    if len(data_loader) == 0:
+        return float("nan")
+    elif num_batches is None:
+        num_batches = len(data_loader)
+    else:
+        num_batches = min(num_batches, len(data_loader)) # 确保批次数量不超过数据加载器中的批次数量
+    for i, (input_batch, target_batch) in enumerate(data_loader):
+        if i < num_batches:
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            total_loss += loss.item()
+        else:
+            break
+    return total_loss / num_batches
+
+with torch.no_grad(): # 禁用梯度以提高效率，因为我们尚未进行训练
+    train_loss = cala_loss_loader(
+        train_loader, model, device, num_batches=5
+    )
+    val_loss = cala_loss_loader(
+        val_loader, model, device, num_batches=5
+    )
+    test_loss = cala_loss_loader(
+        test_loader, model, device, num_batches=5
+    )
+# print(f"Training loss: {train_loss:.3f}")
+# print(f"Validation loss: {val_loss:.3f}")
+# print(f"Test loss: {test_loss:.3f}")
+
+
+# 代码清单 6-10 微调模型进行垃圾信息分类
+def train_classifier_simple(
+        model, train_loader, val_loader, optimizer, device,
+        num_epochs, eval_freq, eval_iter):
+    train_losses, val_losses, train_accs, val_accs = [], [], [], [] # 初始化列表以跟踪损失和所见样本
+    examples_seen, global_step = 0, -1
+
+    for epoch in range(num_epochs): # 主训练循环
+        model.train() #设置模型为训练模式
+        for input_batch, target_batch in train_loader:
+            optimizer.zero_grad() # 重置上一次批次迭代的损失梯度
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            loss.backward() # 计算损失梯度
+            optimizer.step() # 使用损失梯度更新模型权重
+            examples_seen += input_batch.shape[0] # 新设置：跟踪样本而不是词元
+            global_step += 1
+
+            # 可选的评估步骤
+            if global_step % eval_freq == 0:
+                train_loss, val_loss = evaluate_model(
+                    model, train_loader, val_loader, device, eval_iter
+                )
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                print(f"Ep {epoch+1}(Step {global_step:06d}):"
+                      f" Train Loss {train_loss:.3f}, "
+                      f"Val Loss {val_loss:.3f}"
+                )
+
+        # 每轮训练后计算准确率
+        train_accuracy = calc_accuracy_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_accuracy = calc_accuracy_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+
+        print(f"Training accuracy: {train_accuracy * 100:.2f}% | ", end= "")
+        print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+        train_accs.append(train_accuracy)
+        val_accs.append(val_accuracy)
+
+    return train_losses, val_losses, train_accs, val_accs, examples_seen
+
+def evaluate_model(model, train_loader, val_loader, device, eval_iter):
+    model.eval()
+    with torch.no_grad():
+        train_loss = cala_loss_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_loss = cala_loss_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+    model.train()
+    return train_loss, val_loss
+
+import time
+
+start_time = time.time()
+torch.manual_seed(123)
+optimizer = torch.optim.Adam(model.parameters(), lr=5e-5, weight_decay=0.1)
+num_epochs = 5
+
+train_losses, val_losses, train_accs, val_accs, examples_seen = \
+    train_classifier_simple(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=50, eval_iter=5
+    )
+
+end_time = time.time()
+execution_time = (end_time - start_time) / 60
+print(f"Training completed in {execution_time:.2f} minutes.")
+
+
+# 代码清单 6-11 绘制分类损失曲线
+import matplotlib.pyplot as plt
+
+def plot_values(
+        epochs_seen, examples_seen, train_values, val_values,
+        label="loss"):
+    fig, ax1 = plt.subplots(figsize=(5, 3))
+
+    # 绘制训练集损失和验证集损失与轮数的关联
+    ax1.plot(epochs_seen, train_values, label=f"Training {label}")
+    ax1.plot(
+        epochs_seen, val_values, linestyle="-.",
+        label=f"Validation {label}"
+    )
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel(label.capitalize())
+    ax1.legend()
+
+    ax2 = ax1.twiny() #为所见样本创建第二个 x 轴
+    ax2.plot(examples_seen, train_values, alpha=0) # 不可见的图形用于对齐刻度
+    ax2.set_xlabel("Examples seen")
+
+    fig.tight_layout() # 调整布局以腾出空间
+    plt.savefig(f"{label}-plot.pdf")
+    plt.show()
+
+epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
+examples_seen_tensor = torch.linspace(0, examples_seen, len(train_losses))
+
+plot_values(epochs_tensor, examples_seen_tensor, train_losses, val_losses)
+
+epochs_tensor = torch.linspace(0, num_epochs, len(train_accs))
+examples_seen_tensor = torch.linspace(0, examples_seen, len(train_accs))
+
+plot_values(
+    epochs_tensor, examples_seen_tensor, train_accs, val_accs,
+    label="accuracy"
+)
+
+train_accuracy = calc_accuracy_loader(train_loader, model, device)
+val_accuracy = calc_accuracy_loader(val_loader, model, device)
+test_accuracy = calc_accuracy_loader(test_loader, model, device)
+print(f"Training accuracy: {train_accuracy * 100:.2f}%")
+print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
+print(f"Test accuracy: {test_accuracy * 100:.2f}%")
+
+
+# 代码清单 6-12 使用模型对新的文本进行分类
+def classify_review(
+        text, model, tokenizer, device, max_length=None,
+        pad_token_id=50256):
+    model.eval()
+
+    input_ids = tokenizer.encode(text) # 准备模型的输入数据
+    supported_context_length = model.pos_emb.weight.shape[0]
+
+    input_ids = input_ids[:min( # 截断过长的序列
+        max_length, supported_context_length
+    )]
+
+    input_ids += [pad_token_id] * (max_length - len(input_ids)) # 填充序列至最长序列长度
+
+    input_tensor = torch.tensor(
+        input_ids, device= device
+    ).unsqueeze(0) # 添加批次维度
+
+    with torch.no_grad(): # 推理时不需要计算维度
+        logits = model(input_tensor)[:, -1, :] # 最后一个输出词元的 logits
+    predicted_label = torch.argmax(logits, dim=-1).item()
+
+    return "spam" if predicted_label == 1 else "not spam (ham)" # 返回分类结果
+
+text_1 = (
+    "You have a winner you have been specially"
+    " selected to receive $1000 cash or a $2000 award."
+)
+print(classify_review(text_1, model, tokenizer, device, max_length=train_dataset.max_length)) # 垃圾消息
+
+text_2 = (
+    "Hey, just wanted to check if we're still on"
+    " for dinner tonight? Let me know!"
+)
+print(classify_review(text_2, model, tokenizer, device, max_length=train_dataset.max_length)) # 非垃圾消息
+
+# 保存模型
+torch.save(model.state_dict(), "review_classifier.pth")
+
+# 加载模型
+# model_state_dict = torch.load("review_classifier.pth", map_location=device)
+# model.load_state_dict(model_state_dict)
