@@ -8,6 +8,7 @@ from datasets.utils import extract
 from flatbuffers import encode
 from pandas.core.common import random_state
 from patsy import origin
+from sipbuild.generator import outputs
 
 url = "http://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip"
 zip_path = "sms_spam_collection.zip"
@@ -531,3 +532,18 @@ inputs = tokenizer.encode("Do you have time")
 inputs = torch.tensor(inputs).unsqueeze(0)
 # print("Inputs:", inputs)
 # print("Inputs dimensions:", inputs.shape) # 形状： (batch_size, num_tokens)
+
+with torch.no_grad():
+    outputs = model(inputs)
+# print("Outputs:\n", outputs)
+# print("Outputs dimensions:", outputs.shape)
+
+# print("Last output token:", outputs[:, -1, :])
+
+# probas = torch.softmax(outputs[:, -1, :], dim=-1)
+# label = torch.argmax(probas)
+# print("Class label:", label.item())
+
+logits = outputs[:, -1,:]
+label = torch.argmax(logits)
+print("Class label:", label.item())
