@@ -788,11 +788,17 @@ text_1 = (
     "You have a winner you have been specially"
     " selected to receive $1000 cash or a $2000 award."
 )
-print(classify_review(text_1, model, tokenizer, device, max_length=train_dataset.max_length))
+print(classify_review(text_1, model, tokenizer, device, max_length=train_dataset.max_length)) # 垃圾消息
 
 text_2 = (
     "Hey, just wanted to check if we're still on"
     " for dinner tonight? Let me know!"
 )
-print(classify_review(text_2, model, tokenizer, device, max_length=train_dataset.max_length))
+print(classify_review(text_2, model, tokenizer, device, max_length=train_dataset.max_length)) # 非垃圾消息
 
+# 保存模型
+torch.save(model.state_dict(), "review_classifier.pth")
+
+# 加载模型
+# model_state_dict = torch.load("review_classifier.pth", map_location=device)
+# model.load_state_dict(model_state_dict)
