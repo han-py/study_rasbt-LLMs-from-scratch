@@ -6,6 +6,7 @@ from pathlib import Path
 
 from datasets.utils import extract
 from flatbuffers import encode
+from jinja2 import optimizer
 from pandas.core.common import random_state
 from patsy import origin
 from sipbuild.generator import outputs
@@ -691,3 +692,20 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
         )
     model.train()
     return train_loss, val_loss
+
+import time
+
+start_time = time.time()
+torch.manual_seed(123)
+optimizer = torch.optim.Adam(model.parameters(), lr=5e-5, weight_decay=0.1)
+num_epochs = 5
+
+train_loss, val_loss, train_acc, val_acc, examples_seen = \
+    train_classifier_simple(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=50, eval_iter=5
+    )
+
+end_time = time.time()
+execution_time = (end_time - start_time) / 60
+print(f"Training completed in {execution_time:.2f} minutes.")
