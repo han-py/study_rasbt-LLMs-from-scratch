@@ -757,3 +757,29 @@ test_accuracy = calc_accuracy_loader(test_loader, model, device)
 print(f"Training accuracy: {train_accuracy * 100:.2f}%")
 print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
 print(f"Test accuracy: {test_accuracy * 100:.2f}%")
+
+
+# 代码清单 6-12 使用模型对新的文本进行分类
+def classify_review(
+        text, model, tokenizer, device, max_length=None,
+        pad_token_id=50256):
+    model.eval()
+
+    input_ids = tokenizer.encode(text) # 准备模型的输入数据
+    supported_context_length = model.pos_emb.weight.shape[0]
+
+    input_ids = input_ids[:min( # 截断过长的序列
+        max_length, supported_context_length
+    )]
+
+    input_ids += [pad_token_id] * (max_length - len(input_ids)) # 填充序列至最长序列长度
+
+    input_tensor = torch.tensor(
+        input_ids, device= device
+    ).unsqueeze(0) # 添加批次维度
+
+    with torch.no_grad(): # 推理时不需要计算维度
+        logits = model(input_tensor)[:, -1, :] # 最后一个输出词元的 logits
+    predicted_label = torch.argmax(logits, dim=-1).item()
+
+    return "spam" if predicted_label == 1 else "not spam (ham)" # 返回分类结果
