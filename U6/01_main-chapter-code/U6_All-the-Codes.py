@@ -783,3 +783,16 @@ def classify_review(
     predicted_label = torch.argmax(logits, dim=-1).item()
 
     return "spam" if predicted_label == 1 else "not spam (ham)" # 返回分类结果
+
+text_1 = (
+    "You have a winner you have been specially"
+    " selected to receive $1000 cash or a $2000 award."
+)
+print(classify_review(text_1, model, tokenizer, device, max_length=train_dataset.max_length))
+
+text_2 = (
+    "Hey, just wanted to check if we're still on"
+    " for dinner tonight? Let me know!"
+)
+print(classify_review(text_2, model, tokenizer, device, max_length=train_dataset.max_length))
+
