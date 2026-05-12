@@ -737,7 +737,7 @@ def plot_values(
     plt.savefig(f"{label}-plot.pdf")
     plt.show()
 
-epochs_tensor = torch.linspace(0, num_epochs, len(train_loss))
+epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
 examples_seen_tensor = torch.linspace(0, examples_seen, len(train_losses))
 
 plot_values(epochs_tensor, examples_seen_tensor, train_losses, val_losses)
