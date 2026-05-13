@@ -122,3 +122,13 @@ def custom_collate_draft_1(
 
     inputs_tensor = torch.stack(inputs_lst).to(device) # 输入列表变成一个张量并转移到目标设备
     return inputs_tensor
+
+inputs_1 = [0, 1, 2, 3, 4]
+inputs_2 = [5, 6]
+inputs_3 = [7, 8, 9]
+batch = (
+    inputs_1,
+    inputs_2,
+    inputs_3
+)
+print(custom_collate_draft_1(batch))
