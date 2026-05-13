@@ -152,10 +152,12 @@ def custom_collate_draft_2(
         targets = torch.tensor(padded[1:]) # 向左易懂一个位置得到目标
         inputs_lst.append(inputs)
         targets_lst.append(targets)
-        inputs_tensor = torch.stack(inputs_lst).to(device)
-        targets_tensor = torch.stack(targets_lst).to(device)
-        return inputs_tensor, targets_tensor
+    inputs_tensor = torch.stack(inputs_lst).to(device)
+    targets_tensor = torch.stack(targets_lst).to(device)
+    return inputs_tensor, targets_tensor
 
 inputs, targets = custom_collate_draft_2(batch)
-print(inputs)
-print(targets)
+# print(inputs)
+# print(targets)
+
+
