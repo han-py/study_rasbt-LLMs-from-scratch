@@ -251,3 +251,40 @@ customized_collate_fn = partial(
 from torch.utils.data import DataLoader
 
 num_workers = 0 # 如果你的操作系统支持 Python 进程的并行，那么可以加大这个数值
+batch_size = 8
+
+torch.manual_seed(123)
+
+train_dataset = InstructionDataset(train_data, tokenizer)
+train_loader = DataLoader(
+    train_dataset,
+    batch_size=batch_size,
+    collate_fn=customized_collate_fn,
+    shuffle=True,
+    drop_last=True,
+    num_workers=num_workers,
+)
+
+val_dataset = InstructionDataset(val_data, tokenizer)
+val_loader = DataLoader(
+    val_dataset,
+    batch_size=batch_size,
+    collate_fn=customized_collate_fn,
+    shuffle=False,
+    drop_last=False,
+    num_workers=num_workers,
+)
+
+test_dataset = InstructionDataset(test_data, tokenizer)
+test_loader = DataLoader(
+    test_dataset,
+    batch_size=batch_size,
+    collate_fn=customized_collate_fn,
+    shuffle=False,
+    drop_last=False,
+    num_workers=num_workers,
+)
+
+print("Train loader:")
+for inputs, targets in train_loader:
+    print(inputs.shape, targets.shape)
