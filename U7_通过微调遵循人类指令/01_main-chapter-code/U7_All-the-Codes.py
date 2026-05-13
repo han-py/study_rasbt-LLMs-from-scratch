@@ -229,5 +229,25 @@ loss_2 = torch.nn.functional.cross_entropy(logits_2, targets_2)
 
 targets_3 = torch.tensor([0, 1, -100])
 loss_3 = torch.nn.functional.cross_entropy(logits_2, targets_3)
-print(loss_3)
-print("loss_1 == loss_3:", loss_1 == loss_3)
+# print(loss_3)
+# print("loss_1 == loss_3:", loss_1 == loss_3)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# 取消注释这两行就可以在 Apple Silicon 芯片上使用GPU
+# if torch.backends.mps.is_available():
+#     device = torch.device("mps")
+print("Device:",  device)
+
+from functools import partial
+
+customized_collate_fn = partial(
+    custom_collate_fn,
+    device=device,
+    allowed_max_length=1024
+)
+
+
+# 代码清单 7-6 初始化数据加载器
+from torch.utils.data import DataLoader
+
+num_workers = 0 # 如果你的操作系统支持 Python 进程的并行，那么可以加大这个数值
