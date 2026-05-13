@@ -564,3 +564,51 @@ model.eval()
 torch.manual_seed(123)
 input_text = format_input(val_data[0])
 print(input_text)
+
+# 代码清单 5-4 修改后更具多样性的文本生成函数
+def generate(model, idx, max_new_tokens, context_size,temperature=0.0, top_k=None, eos_id=None):
+    for _ in range(max_new_tokens): # 这个for循环与之前一样，获取logits,并且只关注最后一个时间步
+        idx_cond = idx[:, -context_size:]
+        with torch.no_grad():
+            logits = model(idx_cond)
+        logits = logits[:, -1, :]
+        if top_k is not None: # 使用Top-k采样筛选logits
+            top_logits , _ = torch.topk(logits, k=top_k)
+            min_val = top_logits[:,-1]
+            logits = torch.where(
+                logits < min_val,
+                torch.tensor(float("-inf")).to(logits.device),
+                logits
+            )
+        if temperature > 0.0: # 使用温度缩放
+            logits = logits / temperature
+            probas = torch.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probas, num_samples=1)
+        else: # 当禁用温度缩放时，像以前一样执行贪心解码，选取下一个词元
+            idx_next = torch.argmax(logits, dim=-1, keepdim=True)
+        if idx_next == eos_id: # 如果遇到序列结束词元，则提前停止生成
+            break
+        idx = torch.cat((idx, idx_next), dim=-1)
+    return idx
+
+# 代码清单 5-1 用于文本到词元ID转换的工具函数
+def text_to_token_ids(text, tokenizer):
+    encoded = tokenizer.encode(text, allowed_special = {'<|endoftext|>'})
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)   # 使用 .unsqueeze(0) 添加 batch 维度
+    return encoded_tensor
+
+def token_ids_to_text(token_ids, tokenizer):
+    flat = token_ids.squeeze(0)    # 移除batch维度
+    return tokenizer.decode(flat.tolist())
+
+token_ids = generate(
+    model=model,
+    idx=text_to_token_ids(input_text, tokenizer),
+    max_new_tokens=35,
+    context_size=BASE_CONFIG["context_length"],
+    eos_id=50256,
+)
+generated_text = token_ids_to_text(token_ids, tokenizer)
+
+response_text = generated_text[len(input_text):].strip()
+print(response_text)
