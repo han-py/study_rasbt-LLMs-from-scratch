@@ -20,6 +20,7 @@ url = (
 )
 
 data = download_and_load_file(file_path, url)
-print("Number of entries:", len(data))
-
-print("Example entry:\n", data[50])
+# print("Number of entries:", len(data))
+#
+# print("Example entry:\n", data[50])
+# print("Another example entry:\n", data[999])
