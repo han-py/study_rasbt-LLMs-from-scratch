@@ -131,4 +131,31 @@ batch = (
     inputs_2,
     inputs_3
 )
-print(custom_collate_draft_1(batch))
+# print(custom_collate_draft_1(batch))
+
+def custom_collate_draft_2(
+        batch,
+        pad_token_id=50256,
+        device="cpu"
+):
+    batch_max_length = max(len(item)+1 for item in batch)
+    inputs_lst, targets_lst = [], []
+
+    for item in batch:
+        new_item = item.copy()
+        new_item += [pad_token_id]
+        padded = (
+            new_item + [pad_token_id] *
+            (batch_max_length - len(new_item))
+        )
+        inputs = torch.tensor(padded[:-1]) # 截断输入的最后一个词元
+        targets = torch.tensor(padded[1:]) # 向左易懂一个位置得到目标
+        inputs_lst.append(inputs)
+        targets_lst.append(targets)
+        inputs_tensor = torch.stack(inputs_lst).to(device)
+        targets_tensor = torch.stack(targets_lst).to(device)
+        return inputs_tensor, targets_tensor
+
+inputs, targets = custom_collate_draft_2(batch)
+print(inputs)
+print(targets)
