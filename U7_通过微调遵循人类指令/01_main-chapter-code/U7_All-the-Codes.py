@@ -716,3 +716,19 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
     print(decoded_text.replace("\n", " "))  # 紧凑的打印格式
     model.train()
 
+model.to( device)
+torch.manual_seed(123)
+
+with torch.no_grad():
+    train_loss = calc_loss_loader(
+        train_loader, model, device, num_batches=5
+    )
+    val_loss = calc_loss_loader(
+        val_loader, model, device, num_batches=5
+    )
+
+    print("Training loss:", train_loss)
+    print("Validation loss:", val_loss)
+
+
+# 代码清单 7-8 对预训练的大语言模型进行指令微调
