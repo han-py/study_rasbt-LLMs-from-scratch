@@ -612,3 +612,107 @@ generated_text = token_ids_to_text(token_ids, tokenizer)
 
 response_text = generated_text[len(input_text):].strip()
 print(response_text)
+
+def calc_loss_batch(input_batch, target_batch, model, device):
+    input_batch = input_batch.to(device)
+    target_batch = target_batch.to(device)
+    logits = model(input_batch)
+    loss = torch.nn.functional.cross_entropy(
+        logits.flatten(0, 1), target_batch.flatten()
+    )
+    return loss
+
+# 代码清单 5-2 用于计算训练集和验证集损失的函数
+def calc_loss_loader(data_loader, model, device, num_batches = None):
+    total_loss = 0.
+    if len(data_loader) == 0:
+        return float("nan")
+    elif num_batches is None:
+        num_batches = len(data_loader)  # 如果没有指定遍历多少个批次（num_batches），那么就遍历所有批次
+    else:
+        num_batches = min(num_batches, len(data_loader))  # 如果 num_batches 超过数据加载器中的批次数，那么就需要减少批次数，以匹配数据加载器中的总批次数
+    for i, (input_batch, target_batch) in enumerate(data_loader):
+        if i < num_batches:
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            total_loss += loss.item()  # 每个批次的损失的总和
+        else:
+            break
+    return total_loss / num_batches  # 对所有批次的损失求平均值
+
+# 代码清单 5-3 预训练大模型的主函数
+def train_model_simple(model, train_loader,val_loader,
+                       optimizer, device, num_epochs,
+                       eval_freq, eval_iter, start_context, tokenizer):
+    train_losses, val_losses ,track_tokens_seen = [], [], []  # 初始化列表以跟踪损失和所见的词元
+    tokens_seen, global_step = 0, -1
+
+    for epoch in range(num_epochs):  # 开始主训练循环
+        model.train()
+        for input_batch, target_batch in train_loader:
+            optimizer.zero_grad()  # 重置上一个批次迭代中的损失梯度
+            loss = calc_loss_batch(
+                input_batch, target_batch, model, device
+            )
+            loss.backward()  # 计算损失梯度
+            optimizer.step()  # 使用损失梯度更新模型权重
+            tokens_seen += input_batch.numel()
+            global_step += 1
+
+            if global_step % eval_freq == 0:  # 可选的评估步骤
+                train_loss, val_loss = evaluate_model(
+                    model, train_loader, val_loader, device, eval_iter
+                )
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                track_tokens_seen.append(tokens_seen)
+                print(f"Ep {epoch+1} (Step {global_step:06d}):"
+                      f"Train loss {train_loss:.3f},"
+                      f"Val loss {val_loss:.3f}"
+                )
+
+        generate_and_print_sample(  # 每轮之后打印一个文本样本
+            model, tokenizer, device, start_context
+        )
+    return train_losses, val_losses, track_tokens_seen
+
+def evaluate_model(model, train_loader, val_loader, device, eval_iter):
+    model.eval()  # 在评估阶段禁用 dropout, 以产出稳定且可复现的结果
+    with torch.no_grad():  # 评估阶段也会禁用梯度跟踪，因为这是不需要的，而且这样可以减少计算开销
+        train_loss = calc_loss_loader(
+            train_loader, model, device, num_batches=eval_iter
+        )
+        val_loss = calc_loss_loader(
+            val_loader, model, device, num_batches=eval_iter
+        )
+    model.train()
+    return train_loss, val_loss
+
+def generate_text_simple(model, idx,  # idx 是当前文本的索引数组，其形状为(batch, n_tokens)
+                         max_new_tokens, context_size):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]  # 将当前文本截断至支持的长度。如果大语言模型仅支持 5 个词元，但此时文本长度为 10，则只有最后 5 个词元会被用作输入文本
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        logits = logits[:, -1, :]  # 只关注最后一个输出的内容，因此形状会从 (batch, n_token, vocab_size) 变为 (batch, vocab_size)
+        probas = torch.softmax(logits, dim=-1)  # probas 的形状为 (batch, vocab_size)
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)  # idx_next 的形状为 (batch, 1)
+        idx = torch.cat((idx, idx_next), dim=1)  # 将计算出的下一个字符的索引添加到索引数组中，此时 idx 的形状会变为 (batch, n_tokens + 1)
+
+    return  idx
+
+def generate_and_print_sample(model, tokenizer, device, start_context):
+    model.eval()
+    context_size = model.pos_emb.weight.shape[0]
+    encoded = text_to_token_ids(start_context, tokenizer).to(device)
+    with torch.no_grad():
+        token_ids = generate_text_simple(
+            model=model, idx=encoded,
+            max_new_tokens=50, context_size=context_size
+        )
+    decoded_text = token_ids_to_text(token_ids, tokenizer)
+    print(decoded_text.replace("\n", " "))  # 紧凑的打印格式
+    model.train()
+
