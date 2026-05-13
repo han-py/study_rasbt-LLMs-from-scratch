@@ -727,8 +727,8 @@ with torch.no_grad():
         val_loader, model, device, num_batches=5
     )
 
-    print("Training loss:", train_loss)
-    print("Validation loss:", val_loss)
+print("Training loss:", train_loss)
+print("Validation loss:", val_loss)
 
 
 # 代码清单 7-8 对预训练的大语言模型进行指令微调
