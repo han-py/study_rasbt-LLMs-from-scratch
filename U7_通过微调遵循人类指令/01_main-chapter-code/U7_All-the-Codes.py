@@ -4,6 +4,7 @@ import os
 import urllib
 
 from openpyxl.formula import tokenizer
+from statsmodels.tsa.arima import params
 from torch.onnx.symbolic_opset9 import tensor
 
 
@@ -532,3 +533,30 @@ def load_weights_into_gpt(gpt, params): # 将模型的位置信息和词元嵌�
         gpt.final_norm.shift = assign(gpt.final_norm.shift, params["b"])
         gpt.out_head.weight = assign(gpt.out_head.weight,params["wte"]) # OpenAI 的原始 GPT-2 模型在其输出层中复用了词元嵌入权重，以减少参数总数，这一概念被称为“权重绑定”
 
+BASE_CONFIG = {
+    "vocab_size": 50257, # 词汇表大小
+    "context_length": 1024, # 上下文长度
+    "drop_rate": 0.0, # dropout 率
+    "qkv_bias": True, # 查询-键-值偏置
+}
+
+model_configs = {
+    "gpt2-small (124M)": {"emb_dim": 768, "n_layers": 12, "n_heads": 12},
+    "gpt2-medium (355M)": {"emb_dim": 1024, "n_layers": 24, "n_heads": 16},
+    "gpt2-large (774M)": {"emb_dim": 1280, "n_layers": 36, "n_heads": 20},
+    "gpt2-xl (1558M)": {"emb_dim": 1600, "n_layers": 48, "n_heads": 25},
+}
+
+CHOOSE_MODEL = "gpt2-medium (355M)"
+BASE_CONFIG.update(model_configs[CHOOSE_MODEL])
+
+model_size = CHOOSE_MODEL.split(" ")[-1].lstrip("(").rstrip(")")
+
+settings, params = download_and_load_gpt2(
+    model_size=model_size,
+    models_dir="gpt2"
+)
+
+model = GPTModel(BASE_CONFIG)
+load_weights_into_gpt(model, params)
+model.eval()
