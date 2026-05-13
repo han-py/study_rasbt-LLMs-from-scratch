@@ -4,6 +4,7 @@ import os
 import urllib
 
 from openpyxl.formula import tokenizer
+from torch.onnx.symbolic_opset9 import tensor
 
 
 def download_and_load_file(file_path, url):
@@ -99,3 +100,25 @@ class InstructionDataset(Dataset):
 import tiktoken
 tokenizer = tiktoken.get_encoding("gpt2")
 print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"}))
+
+def custom_collate_draft_1(
+        batch,
+        pad_token_id=50256,
+        device="cpu"
+):
+    batch_max_length = max(len(item)+1 for item in batch) # 找到批次中最长的序列
+    inputs_lst = []
+
+    for item in batch: # 填充并准备输入
+        new_item = item.copy()
+        new_item += [pad_token_id]
+
+        padded = (
+            new_item + [pad_token_id] *
+            (batch_max_length - len(new_item))
+        )
+        inputs = torch.tensor(padded[:-1]) # 删除之前添加的额外填充词元
+        inputs_lst.append(inputs)
+
+    inputs_tensor = torch.stack(inputs_lst).to(device) # 输入列表变成一个张量并转移到目标设备
+    return inputs_tensor
