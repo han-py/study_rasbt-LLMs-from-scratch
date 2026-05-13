@@ -69,9 +69,9 @@ train_data = data[:train_portion]
 test_data = data[train_portion:train_portion + test_portion]
 val_data = data[train_portion + test_portion:]
 
-print("Training set length:", len(train_data))
-print("Validation set length:", len(val_data))
-print("Test set length:", len(test_data))
+# print("Training set length:", len(train_data))
+# print("Validation set length:", len(val_data))
+# print("Test set length:", len(test_data))
 
 
 # 代码清单 7-4 实现一个指令数据集类
@@ -98,4 +98,4 @@ class InstructionDataset(Dataset):
 
 import tiktoken
 tokenizer = tiktoken.get_encoding("gpt2")
-print(tokenizer.encode("<|endoftext|>", allowed_special={"|endoftext|"}))
+print(tokenizer.encode("<|endoftext|>", allowed_special={"<|endoftext|>"}))
