@@ -21,3 +21,5 @@ url = (
 
 data = download_and_load_file(file_path, url)
 print("Number of entries:", len(data))
+
+print("Example entry:\n", data[50])
