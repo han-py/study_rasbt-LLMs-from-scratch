@@ -3,6 +3,9 @@ import json
 import os
 import urllib
 
+from openpyxl.formula import tokenizer
+
+
 def download_and_load_file(file_path, url):
     if not os.path.exists(file_path):
         with urllib.request.urlopen(url) as response:
@@ -69,3 +72,30 @@ val_data = data[train_portion + test_portion:]
 print("Training set length:", len(train_data))
 print("Validation set length:", len(val_data))
 print("Test set length:", len(test_data))
+
+
+# 代码清单 7-4 实现一个指令数据集类
+import torch
+from torch.utils.data import Dataset
+
+class InstructionDataset(Dataset):
+    def __init__(self, data, tokenizer):
+        self.data = data
+        self.encoded_texts = []
+        for entry in data:
+            instruction_plus_input = format_input(entry) # 预词元化文本
+            response_text = f"\n\n### Response:\n{entry['output']}"
+            full_text = instruction_plus_input + response_text
+            self.encoded_texts.append(
+                tokenizer.encode(full_text)
+            )
+
+    def __getitem__(self, index):
+        return self.encoded_texts[ index]
+
+    def __len__(self):
+        return len(self.data)
+
+import tiktoken
+tokenizer = tiktoken.get_encoding("gpt2")
+print(tokenizer.encode("<|endoftext|>", allowed_special={"|endoftext|"}))
