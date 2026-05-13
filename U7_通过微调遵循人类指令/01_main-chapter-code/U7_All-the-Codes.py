@@ -51,3 +51,7 @@ Occassion
 ### Response:
 The correct spelling is 'Occasion.'
 """
+
+model_input = format_input(data[999])
+desired_response = f"\n\n### Response:\n{data[999]['output']}"
+print(model_input + desired_response)
