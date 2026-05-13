@@ -560,3 +560,7 @@ settings, params = download_and_load_gpt2(
 model = GPTModel(BASE_CONFIG)
 load_weights_into_gpt(model, params)
 model.eval()
+
+torch.manual_seed(123)
+input_text = format_input(val_data[0])
+print(input_text)
