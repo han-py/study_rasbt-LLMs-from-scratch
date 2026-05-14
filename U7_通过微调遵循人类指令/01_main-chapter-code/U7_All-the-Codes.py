@@ -751,3 +751,22 @@ train_losses, val_losses, tokens_seen = train_model_simple(
 end_time = time.time()
 execution_time_minutes = (end_time - start_time) / 60
 print(f"Training completed in {execution_time_minutes:.2f} minutes.")
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+# plot_losses 会把训练损失和验证损失画在同一张图里，方便比较。
+def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
+    fig, ax1 = plt.subplots(figsize=(5, 3))
+    ax1.plot(epochs_seen, train_losses, label = "Training loss")
+    ax1.plot(
+        epochs_seen, val_losses, linestyle="-.",label = "Validation loss"
+    )
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel("Loss")
+    ax1.legend(loc = "upper right")
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax2 = ax1.twiny() # 创建共享同一个y轴的第二个x轴
+    ax2.plot(tokens_seen, train_losses, alpha=0)  # 对齐刻度线的隐藏图表
+    ax2.set_xlabel("Tokens seen")
+    fig.tight_layout()
+    plt.show()
