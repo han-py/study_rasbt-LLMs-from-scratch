@@ -23,3 +23,10 @@
 /U6_针对分类的微调/01_main-chapter-code/loss-plot.pdf
 /U6_针对分类的微调/01_main-chapter-code/accuracy-plot.pdf
 /U6_针对分类的微调/01_main-chapter-code/review_classifier.pth
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/checkpoint
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/encoder.json
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/hparams.json
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/model.ckpt.data-00000-of-00001
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/model.ckpt.index
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/model.ckpt.meta
+/U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/vocab.bpe
