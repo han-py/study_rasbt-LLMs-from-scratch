@@ -855,3 +855,45 @@ if not ollama_running:
         "Ollama not running. Launch ollama before proceeding."
     )
 print("Ollama running:", check_if_running("ollama"))
+
+
+# 代码清单 7-10 与本地部署的 Ollama 模型交互
+import  urllib.request
+
+def query_model(
+        prompt,
+        model="llama3",
+        url="http://localhost:11434/api/v1/chat",
+):
+    data = { # 创建字典格式的数据
+        "model": model,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "options":{ # 设置种子得到确定性的返回结果
+            "seed": 123,
+            "temperature": 0,
+            "num_ctx": 2048
+        }
+    }
+
+    payload = json.dumps(data).encode("utf-8") # 将字典变成 JSON 格式的字符串，并编码为 UTF-8 字节
+    # 创建一个请求对象，将方法设置为 POST ，并加入必要的请求头
+    request = urllib.request.Request(
+        url,
+        data=payload,
+        method="POST"
+    )
+
+    request.add_header("Content-Type", "application/json")
+
+    response_data = ""
+    with urllib.request.urlopen(request) as response: # 发送请求并捕获模型回复
+        while True:
+            line = response.readline().decode("utf-8")
+            if not line:
+                break
+            response_json = json.loads(line)
+            response_data += response_json["message"]["content"]
+
+    return response_data
