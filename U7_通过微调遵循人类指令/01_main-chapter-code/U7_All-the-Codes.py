@@ -937,3 +937,7 @@ def generate_model_scores(json_data, json_key, model="llama3"):
             continue
 
     return scores
+
+scores = generate_model_scores(test_data, "model_response")
+print(f"Number of scores: {len( scores)} of {len(test_data)}")
+print(f"Average score: {sum(scores) / len(scores):.2f}\n")
