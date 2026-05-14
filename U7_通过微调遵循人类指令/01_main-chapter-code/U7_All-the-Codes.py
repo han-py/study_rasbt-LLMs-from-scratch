@@ -901,3 +901,18 @@ def query_model(
 model = "llama3"
 result = query_model("What do Llamas eat?", model=model)
 print(result)
+
+for entry in test_data[:3]:
+    prompt = (
+        f"Given the input `{format_input(entry)}` "
+        f"and correct output `{entry['output']}`, "
+        f"score the model response `{entry['model_response']}`"
+        f" on a scale from 0 to 100, where 100 is the best score."
+    )
+    print("\nDataset response:")
+    print(">>", entry['output'])
+    print("\nModel response:")
+    print(">>", entry['model_response'])
+    print("\nScore:")
+    print(">>", query_model(prompt))
+    print("\n-------------------------------------")
