@@ -832,3 +832,26 @@ import re
 file_name = f"{re.sub(r'[ ()]', '', CHOOSE_MODEL) }-sft.pth" # 去除文件名中的空白字符和括号
 torch.save(model.state_dict(), file_name)
 print(f"Model saved as {file_name}")
+
+
+# 命令行输入 ollama run llama3
+
+
+# 验证 Ollama 会话是否正常运行
+import psutil
+
+def check_if_running(process_name):
+    running = False
+    for proc in psutil.process_iter(["name"]):
+        if process_name in proc.info["name"]:
+            running = True
+            break
+    return running
+
+ollama_running = check_if_running("ollama")
+
+if not ollama_running:
+    raise RuntimeError(
+        "Ollama not running. Launch ollama before proceeding."
+    )
+print("Ollama running:", check_if_running("ollama"))
