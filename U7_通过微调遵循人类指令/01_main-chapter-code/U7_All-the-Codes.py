@@ -897,3 +897,7 @@ def query_model(
             response_data += response_json["message"]["content"]
 
     return response_data
+
+model = "llama3"
+result = query_model("What do Llamas eat?", model=model)
+print(result)
