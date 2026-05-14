@@ -770,3 +770,6 @@ def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
     ax2.set_xlabel("Tokens seen")
     fig.tight_layout()
     plt.show()
+
+epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
+plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
