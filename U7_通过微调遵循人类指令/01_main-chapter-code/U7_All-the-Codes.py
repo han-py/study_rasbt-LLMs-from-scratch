@@ -916,3 +916,24 @@ for entry in test_data[:3]:
     print("\nScore:")
     print(">>", query_model(prompt))
     print("\n-------------------------------------")
+
+
+# 代码清单 7-11 评估指令微调后的大语言模型
+def generate_model_scores(json_data, json_key, model="llama3"):
+    scores = []
+    for entry in tqdm(json_data, desc="Scoring entries"):
+        prompt = (
+            f"Given the input `{format_input(entry)}` "
+            f"and correct output `{entry['output']}`, "
+            f"score the model response `{entry[json_key]}`"
+            f" on a scale from 0 to 100, where 100 is the best score. "
+            f"Respond with the integer number only." # 修改提示词，以便仅返回分数
+        )
+        score = query_model(prompt, model=model)
+        try:
+            scores.append(int(score))
+        except ValueError:
+            print(f"Could not convert score: {score}")
+            continue
+
+    return scores
