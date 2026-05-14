@@ -825,3 +825,10 @@ with open("instruction-data-with-response.json", "w") as file:
 
 
 print(test_data[0])
+
+
+import re
+
+file_name = f"{re.sub(r'[ ()]', '', CHOOSE_MODEL) }-sft.pth" # 去除文件名中的空白字符和括号
+torch.save(model.state_dict(), file_name)
+print(f"Model saved as {file_name}")
