@@ -551,6 +551,7 @@ CHOOSE_MODEL = "gpt2-medium (355M)"
 BASE_CONFIG.update(model_configs[CHOOSE_MODEL])
 
 model_size = CHOOSE_MODEL.split(" ")[-1].lstrip("(").rstrip(")")
+# print(model_size)
 
 settings, params = download_and_load_gpt2(
     model_size=model_size,
@@ -732,3 +733,21 @@ print("Validation loss:", val_loss)
 
 
 # 代码清单 7-8 对预训练的大语言模型进行指令微调
+import time
+
+start_time = time.time()
+torch.manual_seed(123)
+optimizer = torch.optim.AdamW(
+    model.parameters(), lr=0.00005, weight_decay=0.1
+)
+num_epochs = 2
+
+train_losses, val_losses, tokens_seen = train_model_simple(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=5, eval_iter=5,\
+    start_context=format_input(val_data[0]), tokenizer=tokenizer
+)
+
+end_time = time.time()
+execution_time_minutes = (end_time - start_time) / 60
+print(f"Training completed in {execution_time_minutes:.2f} minutes.")
