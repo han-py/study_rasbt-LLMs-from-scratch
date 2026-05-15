@@ -43,3 +43,8 @@
 /gpt2/355M/model.ckpt.data-00000-of-00001
 /gpt2/355M/model.ckpt.meta
 /gpt2/355M/vocab.bpe
+/gpt2/774M/checkpoint
+/gpt2/774M/encoder.json
+/gpt2/774M/hparams.json
+/gpt2/774M/model.ckpt.data-00000-of-00001
+/gpt2/355M/model.ckpt.index
