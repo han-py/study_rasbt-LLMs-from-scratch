@@ -48,3 +48,7 @@
 /gpt2/774M/hparams.json
 /gpt2/774M/model.ckpt.data-00000-of-00001
 /gpt2/355M/model.ckpt.index
+/gpt2/1558M/checkpoint
+/gpt2/1558M/encoder.json
+/gpt2/1558M/hparams.json
+/gpt2/1558M/model.ckpt.data-00000-of-00001
