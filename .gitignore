@@ -30,3 +30,16 @@
 /U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/model.ckpt.index
 /U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/model.ckpt.meta
 /U7_通过微调遵循人类指令/01_main-chapter-code/gpt2/355M/vocab.bpe
+/gpt2/124M/checkpoint
+/gpt2/124M/encoder.json
+/gpt2/124M/hparams.json
+/gpt2/124M/model.ckpt.data-00000-of-00001
+/gpt2/124M/model.ckpt.index
+/gpt2/124M/model.ckpt.meta
+/gpt2/124M/vocab.bpe
+/gpt2/355M/checkpoint
+/gpt2/355M/encoder.json
+/gpt2/355M/hparams.json
+/gpt2/355M/model.ckpt.data-00000-of-00001
+/gpt2/355M/model.ckpt.meta
+/gpt2/355M/vocab.bpe
