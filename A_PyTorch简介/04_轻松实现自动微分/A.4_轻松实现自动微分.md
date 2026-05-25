@@ -386,7 +386,199 @@ print("b.grad =", b.grad)
 
 ---
 
-## 🌟 十三、为什么自动微分这么重要？
+## 🌟 十三、`torch.autograd.grad`：手动拿到指定张量的梯度
+
+前面我们主要用的是 `loss.backward()`。
+
+它的特点是：
+- 会把梯度累积到参与求导的张量的 `.grad` 属性里
+- 通常用于训练时的标准反向传播
+
+而 `torch.autograd.grad` 的特点是：
+- **直接返回梯度结果**，不会自动写进 `.grad`
+- 可以只求你关心的某几个张量的梯度
+- 在研究、调试、二阶导数、元学习等场景里很常见
+
+### 1. 先看用户提供的这段代码
+
+```python
+import torch
+import torch.nn.functional as F
+from torch.autograd import grad
+
+y = torch.tensor([1.0])
+x1 = torch.tensor([1.1])
+w1 = torch.tensor([2.2], requires_grad=True)
+b = torch.tensor([0.0], requires_grad=True)
+
+z = x1 * w1 + b
+a = torch.sigmoid(z)
+
+loss = F.binary_cross_entropy(a, y)
+
+grad_L_w1 = grad(loss, w1, retain_graph=True)
+grad_L_b = grad(loss, b, retain_graph=True)
+
+print(grad_L_w1)
+print(grad_L_b)
+
+loss.backward()
+print(w1.grad)
+print(b.grad)
+```
+
+### 2. 这段代码在做什么？
+
+我们先把计算流程拆开：
+
+```text
+z = x1 * w1 + b
+a = sigmoid(z)
+loss = binary_cross_entropy(a, y)
+```
+
+其中：
+- `x1` 是输入
+- `w1` 和 `b` 是需要学习的参数
+- `a` 是模型输出的概率
+- `loss` 是二分类交叉熵损失
+
+如果我们希望知道：
+- `loss` 对 `w1` 的梯度是多少
+- `loss` 对 `b` 的梯度是多少
+
+就可以使用 `grad(...)` 或 `backward()`。
+
+### 3. `grad(loss, w1)` 的含义
+
+```python
+grad_L_w1 = grad(loss, w1, retain_graph=True)
+```
+
+这句话的意思是：
+
+> 计算 `loss` 对 `w1` 的梯度，并把结果返回出来。
+
+注意这里返回的是一个 **元组**，所以打印时会看到类似：
+
+```python
+(tensor(...),)
+```
+
+因为 `grad` 支持一次求多个变量的梯度，所以即使这里只传一个变量，结果仍然会被包在元组里。
+
+### 4. 为什么要写 `retain_graph=True`？
+
+默认情况下，PyTorch 在一次梯度计算后会把计算图释放掉，以节省内存。
+
+但你的代码里先做了：
+
+```python
+grad(loss, w1, retain_graph=True)
+grad(loss, b, retain_graph=True)
+```
+
+这里需要再次使用同一张计算图，所以必须保留它。
+
+如果不写 `retain_graph=True`，第一次求完梯度后，后面再对同一 `loss` 求梯度就可能报错：
+
+> Trying to backward through the graph a second time ...
+
+### 5. `grad(...)` 和 `backward()` 的区别
+
+#### `grad(...)`
+- 返回梯度值
+- 不自动写入 `.grad`
+- 更像“我现在要你把答案直接告诉我”
+
+#### `backward()`
+- 把梯度累积到 `.grad`
+- 更像“把梯度记录到参数身上，方便优化器更新”
+
+所以你这段代码里：
+
+```python
+grad_L_w1 = grad(loss, w1, retain_graph=True)
+grad_L_b = grad(loss, b, retain_graph=True)
+```
+
+是在“手动取梯度”；
+
+```python
+loss.backward()
+print(w1.grad)
+print(b.grad)
+```
+
+是在“让梯度写入参数本身”。
+
+### 6. 这两种方式得到的结果应该一致
+
+如果计算图和输入都一样，那么：
+
+- `grad(loss, w1)` 的结果
+- `w1.grad`
+
+应该是相同的。
+
+同理：
+
+- `grad(loss, b)` 的结果
+- `b.grad`
+
+也应该一致。
+
+### 7. 这个例子大概会得到什么结果？
+
+我们来简单理解一下：
+
+- `x1 = 1.1`
+- `w1 = 2.2`
+- `b = 0.0`
+
+所以：
+
+```text
+z = 1.1 * 2.2 + 0 = 2.42
+a = sigmoid(2.42)
+```
+
+因为标签 `y = 1.0`，模型希望输出概率尽量接近 1。
+
+此时梯度会告诉我们：
+- `w1` 应该往哪个方向调
+- `b` 应该往哪个方向调
+
+如果你实际运行代码，`grad(...)` 和 `backward()` 打印出的梯度应当是相同的数值。
+
+### 8. 更规范的写法：一次求多个梯度
+
+你也可以一次性把 `w1` 和 `b` 都传给 `grad`：
+
+```python
+grads = grad(loss, [w1, b], retain_graph=True)
+print(grads)
+```
+
+这时返回值会是：
+
+```python
+(dloss/dw1, dloss/db)
+```
+
+这样更适合同时查看多个参数的梯度。
+
+### 9. 一个非常重要的小提醒
+
+如果你先调用了 `grad(...)`，又想再调用 `backward()`，要么：
+- 在前面的 `grad(...)` 里保留计算图
+- 要么重新重新前向计算一次，构建新图
+
+否则计算图已经被释放，后面就无法继续反向传播。
+
+---
+
+## 🌟 十四、为什么自动微分这么重要？
 
 自动微分让我们可以轻松训练复杂模型，比如：
 - 线性回归
@@ -405,7 +597,7 @@ print("b.grad =", b.grad)
 
 ---
 
-## 🌟 十四、常见错误和小提醒
+## 🌟 十五、常见错误和小提醒
 
 ### 1. 忘记设置 `requires_grad=True`
 如果不设置，梯度不会被记录。
@@ -421,7 +613,7 @@ print("b.grad =", b.grad)
 
 ---
 
-## 🎯 十五、练习题：巩固自动微分
+## 🎯 十六、练习题：巩固自动微分
 
 ### 练习 1：最简单的平方函数
 创建一个 `requires_grad=True` 的张量 `x=3`，计算：
