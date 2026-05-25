@@ -199,6 +199,346 @@ print("输出形状:", out.shape)
 print("输出内容:\n", out)
 ```
 
+### 这一段和“`grad_fn` 是什么”的关系
+
+上面的 `out` 是一个**由模型前向传播算出来的中间结果**，因此它不是纯粹的“静态数值”，而是带着计算图信息的张量。
+
+所以如果你在交互式环境里打印类似输出：
+
+```python
+tensor([[-0.1262,  0.1080, -0.1792]], grad_fn=<AddmmBackward0>)
+```
+
+就说明：
+
+- 这个张量来自一个可求导运算
+- 最后一步通常是线性层的矩阵乘法加偏置
+- 反向传播节点是 `AddmmBackward0`
+
+如果你想快速对照这些名字，可以查看同目录下的 `grad_fn速查版.md`。
+
+---
+
+## 🌟 六、把多层神经网络写得更像你在 notebook 里的代码
+
+下面我们直接用你给出的 `NeuralNetwork` 结构，逐行解释它在做什么。
+
+```python
+import torch
+
+class NeuralNetwork(torch.nn.Module):
+    def __init__(self, num_inputs, num_outputs):  # 将输入和输出的数量编码为变量，使我们可以在具有不同特征数量和类别数量的数据集上重复相同的代码
+        super().__init__()
+
+        self.layers = torch.nn.Sequential(
+            # 第一个隐藏层
+            torch.nn.Linear(num_inputs, 30),  # 线性层将输入结点和输出结点的数量作为参数
+            torch.nn.ReLU(),  # 非线性激活函数被放置在隐藏层之间
+
+            # 第二个隐藏层
+            torch.nn.Linear(30, 20),  # 下一个隐藏层的输出节点数量必须与下一层的输入节点数量相匹配
+            torch.nn.ReLU(),
+
+            # 输出层
+            torch.nn.Linear(20, num_outputs)
+        )
+
+    def forward(self, x):
+        logits = self.layers(x)
+        return logits  # 最后一层的输出称为 logits
+
+model = NeuralNetwork(50, 3)
+print(model)  # 查看模型结构的摘要
+```
+
+### 这段代码的结构含义
+
+#### `NeuralNetwork(torch.nn.Module)`
+这是在定义一个 PyTorch 模型类。
+
+#### `num_inputs` 和 `num_outputs`
+- `num_inputs`：输入特征数量
+- `num_outputs`：输出类别数量或输出维度数量
+
+这样写的好处是：
+- 代码更通用
+- 不同数据集可以重复使用
+- 输入维度和类别数可以通过参数灵活传入
+
+#### `self.layers = torch.nn.Sequential(...)`
+表示把多层网络按顺序串起来：
+
+```text
+输入 -> Linear -> ReLU -> Linear -> ReLU -> Linear -> 输出
+```
+
+#### 为什么是 `30 -> 20 -> num_outputs`
+这里人为设计了两个隐藏层：
+- 第一隐藏层 30 个神经元
+- 第二隐藏层 20 个神经元
+- 最后一层输出 `num_outputs` 个分数
+
+这不是唯一写法，只是一个典型的 MLP 结构。
+
+#### `forward(self, x)`
+定义数据前向流动方式。
+所有输入张量都会先经过 `self.layers(x)`，最后返回 `logits`。
+
+---
+
+## 🌟 七、检查可训练参数总数
+
+你可以这样统计模型里的训练参数：
+
+```python
+# 检查模型的可训练参数总数
+num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f'Total number of trainable model parameters: {num_params}')
+```
+
+### 这里发生了什么？
+
+- `model.parameters()`：取出模型所有参数
+- `p.requires_grad`：只统计需要训练的参数
+- `p.numel()`：统计每个参数张量里的元素总数
+- `sum(...)`：把所有参数加起来
+
+### 为什么要看参数总数？
+
+因为它能帮助你：
+- 判断模型规模
+- 看自己搭的网络是否太大或太小
+- 了解每一层到底有多少权重需要更新
+
+---
+
+## 🌟 八、查看权重和偏置
+
+### 1. 访问第一个线性层的权重
+
+```python
+print(model.layers[0].weight)  # 访问第一个隐藏层的权重参数矩阵
+```
+
+这里的 `model.layers[0]` 就是第一层 `Linear(num_inputs, 30)`。
+
+权重矩阵的形状通常是：
+
+```python
+print(model.layers[0].weight.shape)
+```
+
+对于 `Linear(num_inputs, 30)` 来说，形状一般是：
+
+```text
+(30, num_inputs)
+```
+
+这是因为 PyTorch 内部存储线性层参数时，通常按“输出维度 × 输入维度”保存。
+
+### 2. 访问偏置
+
+```python
+print(model.layers[0].bias)  # 访问第一个隐藏层的偏置参数
+```
+
+偏置的长度一般等于输出神经元数量，也就是 30。
+
+---
+
+## 🌟 九、随机种子 `torch.manual_seed()` 的作用
+
+```python
+# 使用 .manual_seed() 函数设置随机数种子，从而确保每次运行代码时，结果都相同
+torch.manual_seed(123)
+model = NeuralNetwork(50, 3)
+print(model.layers[0].weight)
+```
+
+### 这一步为什么重要？
+
+神经网络层的参数初始化通常带随机性。
+如果不固定随机种子：
+- 每次运行模型初始化结果都不同
+- 你看到的权重值也会不同
+- 调试时不容易复现结果
+
+固定随机种子后：
+- 代码更容易复现
+- 教学演示更稳定
+- 你可以更好地对比前后结果
+
+---
+
+## 🌟 十、前向传播并查看输出
+
+```python
+# 通过前向传播使用 NeuralNetwork 实例
+torch.manual_seed(123)
+x = torch.rand(1, 50)
+out = model(x)
+print(out)
+```
+
+### 这里的输入代表什么？
+
+- `x = torch.rand(1, 50)`
+- 表示一个 batch 中有 1 条样本
+- 每条样本有 50 个特征
+
+### `out` 是什么？
+
+`out` 是网络最后输出的 **logits**。
+
+logits 的意思是：
+- 还没有经过 softmax 的原始分数
+- 不是概率
+- 只是各类别的打分
+
+### 为什么输出里会出现 `grad_fn=<AddmmBackward0>`？
+
+因为最后一层 `Linear(20, num_outputs)` 底层就是：
+
+```text
+X @ W + b
+```
+
+这个操作在 PyTorch 的反向图里通常会显示为 `AddmmBackward0`。
+
+### 输出示例
+
+```python
+tensor([[-0.1262,  0.1080, -0.1792]], grad_fn=<AddmmBackward0>)
+```
+
+这里的含义是：
+- 这是一个 1×3 的输出张量
+- 3 个数分别是 3 个类别的原始分数
+- 它仍然在计算图中，所以带着 `grad_fn`
+
+---
+
+## 🌟 十一、`grad_fn` 的含义进一步展开
+
+如果你想把这类输出和 `grad_fn` 对上号，可以这样理解：
+
+- `AddmmBackward0`：最后一步是线性层
+- `ReluBackward0`：中间经过了 ReLU
+- `SoftmaxBackward0`：如果你显式做了 softmax，就会出现这个节点
+
+所以你看到：
+
+```python
+tensor(..., grad_fn=<AddmmBackward0>)
+```
+
+就说明：
+- 这个张量来自一个线性变换
+- 它还可以继续参与反向传播
+- 它不是一个“已经和梯度无关”的常量
+
+---
+
+## 🌟 十二、使用 `torch.no_grad()` 关闭梯度计算
+
+如果你只是想做预测，而不需要训练，就可以关闭梯度记录：
+
+```python
+# 使用 torch.no_grad() 函数来禁用梯度计算
+with torch.no_grad():
+    out = model(x)
+print(out)
+```
+
+### 这有什么意义？
+
+- 节省显存
+- 计算更快
+- 不会构建不必要的计算图
+
+### 这时输出会怎样？
+
+通常你会看到：
+
+```python
+tensor([...])
+```
+
+而不再有 `grad_fn=...`。
+
+---
+
+## 🌟 十三、把输出变成类别概率
+
+如果你要把模型输出变成“属于每个类别的概率”，就要用 softmax：
+
+```python
+# 为预测结果计算类别成员概率，就需要显示调用 softmax 函数
+with torch.no_grad():
+    out = torch.softmax(model(x), dim=1)  # 通过指定 dim=1 来沿着正确的维度计算 softmax; dim=0 是批次维度，dim=1 是类别维度
+print(out)
+```
+
+### 这里为什么要写 `dim=1`？
+
+因为你的输出形状是：
+
+```text
+(batch_size, num_classes)
+```
+
+比如 `(1, 3)`：
+- `dim=0` 是 batch 维度
+- `dim=1` 是类别维度
+
+softmax 应该沿着类别维度计算，这样每一行才会变成概率分布。
+
+### softmax 的结果满足什么条件？
+
+- 每个值都在 0 到 1 之间
+- 同一行加起来等于 1
+
+比如：
+
+```python
+tensor([[0.31, 0.38, 0.31]])
+```
+
+这就可以解释成：
+- 第 1 类概率 0.31
+- 第 2 类概率 0.38
+- 第 3 类概率 0.31
+
+---
+
+## 🌟 十四、输出、logits、概率三者的区别
+
+### 1. logits
+模型直接输出的原始分数。
+
+### 2. softmax 后的概率
+把 logits 变成归一化概率。
+
+### 3. 预测类别
+通常取概率最大的那个类别：
+
+```python
+pred_class = torch.argmax(out, dim=1)
+```
+
+---
+
+## 🌟 十五、和 `grad_fn对照表.md` 的关系
+
+你现在这个例子和 `grad_fn对照表.md` 可以直接对应起来：
+
+- `Linear` 层输出 → 常见 `AddmmBackward0`
+- `ReLU` → `ReluBackward0`
+- `softmax` → `SoftmaxBackward0`
+- `view / reshape` 等形状变换 → 对应各自的视图类 `grad_fn`
+
+如果你对输出中看到的 `grad_fn` 不熟，可以直接去查同目录下的 `grad_fn对照表.md` 或 `grad_fn速查版.md`。
+
 ### 这里的形状是怎么变化的？
 
 - 输入 `x` 的形状是 `(3, 4)`
