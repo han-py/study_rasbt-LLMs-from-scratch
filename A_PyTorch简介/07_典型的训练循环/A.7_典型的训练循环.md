@@ -174,6 +174,154 @@ if __name__ == '__main__':
 - `val_acc` 是否逐步上升
 - 是否存在过拟合：训练集越来越好，验证集反而变差
 
+### 2.1 结合本 notebook 的完整数据流：Dataset → DataLoader → 训练 → 准确率
+
+下面这一段，就是你 notebook 里最核心、最典型的训练代码。它把“数据怎么来”“怎么训练”“怎么评估”完整串起来了。为了避免代码块之间互相引用，这里给出一个**可单独运行的完整版本**。
+
+```python
+import torch
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+
+class NeuralNetwork(torch.nn.Module):
+	def __init__(self, num_inputs, num_outputs):
+		super().__init__()
+		self.layers = torch.nn.Sequential(
+			torch.nn.Linear(num_inputs, 30),
+			torch.nn.ReLU(),
+			torch.nn.Linear(30, 20),
+			torch.nn.ReLU(),
+			torch.nn.Linear(20, num_outputs)
+		)
+
+	def forward(self, x):
+		return self.layers(x)
+
+class ToyDataset(Dataset):
+	def __init__(self, x, y):
+		self.features = x
+		self.labels = y
+
+	def __getitem__(self, index):
+		return self.features[index], self.labels[index]
+
+	def __len__(self):
+		return self.labels.shape[0]
+
+x_train = torch.tensor([
+	[-1.2, 3.1],
+	[-0.9, 2.9],
+	[-0.5, 2.6],
+	[2.3, -1.1],
+	[2.7, -1.5],
+])
+y_train = torch.tensor([0, 0, 0, 1, 1])
+
+x_test = torch.tensor([
+	[-0.8, 2.8],
+	[2.6, -1.6],
+])
+y_test = torch.tensor([0, 1])
+
+train_ids = ToyDataset(x_train, y_train)
+test_ids = ToyDataset(x_test, y_test)
+
+train_loader = DataLoader(train_ids, batch_size=2, shuffle=True, num_workers=0, drop_last=True)
+test_loader = DataLoader(test_ids, batch_size=2, shuffle=False, num_workers=0)
+
+torch.manual_seed(123)
+model = NeuralNetwork(num_inputs=2, num_outputs=2)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.5)
+
+num_epochs = 3
+for epoch in range(num_epochs):
+	model.train()
+	for batch_idx, (features, labels) in enumerate(train_loader):
+		logits = model(features)
+		loss = F.cross_entropy(logits, labels)
+
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
+
+		print(f"Epoch {epoch + 1:03d}/{num_epochs:03d}"
+			  f" | Batch {batch_idx:03d}/{len(train_loader):03d}"
+			  f" | Train Loss: {loss:.2f}")
+
+	model.eval()
+
+with torch.no_grad():
+	outputs = model(x_train)
+
+torch.set_printoptions(sci_mode=False)
+probas = torch.softmax(outputs, dim=1)
+predictions = torch.argmax(probas, dim=1)
+
+def compute_accuracy(model, dataloader):
+	model.eval()
+	correct = 0.0
+	total_examples = 0
+
+	for _, (features, labels) in enumerate(dataloader):
+		with torch.no_grad():
+			logits = model(features)
+
+		predictions = torch.argmax(logits, dim=1)
+		compare = labels == predictions
+		correct += torch.sum(compare).item()
+		total_examples += len(compare)
+
+	return correct / total_examples
+
+print(compute_accuracy(model, train_loader))
+print(compute_accuracy(model, test_loader))
+```
+
+#### 这段代码可以拆成 4 个动作：
+
+1. `model.train()`：切换到训练模式
+2. 前向传播：`logits = model(features)`
+3. 计算损失：`loss = F.cross_entropy(logits, labels)`
+4. 参数更新：`zero_grad() -> backward() -> step()`
+
+#### 训练结束后做推理
+
+- `model.eval()`：切换到评估模式
+- `torch.no_grad()`：关闭梯度记录，节省显存、加快速度
+
+#### 把 logits 变成概率，再做类别预测
+
+- `outputs` 是原始分数 logits
+- `softmax(dim=1)` 把每一行转成概率分布
+- `argmax(dim=1)` 取概率最大的类别作为预测结果
+
+#### `compute_accuracy()` 做了什么？
+
+- 先进入 `eval()` 模式
+- 再用 `no_grad()` 推理
+- 通过 `argmax` 得到类别预测
+- 把预测和真实标签逐个比较
+- 统计正确个数 / 总样本数，得到准确率
+
+#### 为什么训练集和测试集都要算准确率？
+
+- 训练集准确率高，说明模型至少学会了训练数据
+- 测试集准确率高，说明模型泛化能力更好
+- 如果训练集很高、测试集很低，通常就是过拟合
+
+#### 结合你的数据集来看
+
+你的 ToyDataset 只有 5 条训练样本和 2 条测试样本，非常小，所以它的作用不是“训练出一个强模型”，而是帮助你理解整个 PyTorch 训练流程：
+
+- 数据如何组织
+- batch 如何形成
+- 模型如何前向传播
+- 损失如何计算
+- 梯度如何回传
+- 准确率如何评估
+
+这正是 A.7 这一节最重要的学习目标。
+
 ---
 
 ## 三、关键细节与常见陷阱
