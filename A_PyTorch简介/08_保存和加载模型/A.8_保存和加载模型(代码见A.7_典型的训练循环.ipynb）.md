@@ -13,22 +13,23 @@
 
 ## 📚 目录
 
-- 一、为什么要保存和加载模型？
-- 二、PyTorch 里到底能保存什么？
-- 三、最常见的保存方式：state_dict()
-- 四、保存整个 checkpoint：模型 + 优化器 + 训练状态
-- 五、加载模型参数：load_state_dict()
-- 六、断点恢复训练：从 checkpoint 继续跑
-- 七、保存和加载到不同设备（CPU / GPU）
-- 八、保存自定义模型时的注意事项
-- 九、一个完整可运行的示例
-- 十、保存和加载时常见错误
-- 十一、练习题：巩固模型保存与加载
-- 参考答案
-- 小结
+- <a href="#sec-1">一、为什么要保存和加载模型？</a>
+- <a href="#sec-2">二、PyTorch 里到底能保存什么？</a>
+- <a href="#sec-3">三、最常见的保存方式：state_dict()</a>
+- <a href="#sec-4">四、保存整个 checkpoint：模型 + 优化器 + 训练状态</a>
+- <a href="#sec-5">五、加载模型参数：load_state_dict()</a>
+- <a href="#sec-6">六、断点恢复训练：从 checkpoint 继续跑</a>
+- <a href="#sec-7">七、保存和加载到不同设备（CPU / GPU）</a>
+- <a href="#sec-8">八、保存自定义模型时的注意事项</a>
+- <a href="#sec-9">九、一个完整可运行的示例</a>
+- <a href="#sec-10">十、保存和加载时常见错误</a>
+- <a href="#sec-11">十一、练习题：巩固模型保存与加载</a>
+- <a href="#sec-12">参考答案</a>
+- <a href="#sec-13">小结</a>
 
 ---
 
+<a id="sec-1"></a>
 ## 一、为什么要保存和加载模型？
 
 训练模型通常不是一次就结束的，我们经常需要：
@@ -54,6 +55,7 @@
 
 ---
 
+<a id="sec-2"></a>
 ## 二、PyTorch 里到底能保存什么？
 
 PyTorch 里我们通常会保存以下几类内容：
@@ -75,6 +77,7 @@ PyTorch 里我们通常会保存以下几类内容：
 
 ---
 
+<a id="sec-3"></a>
 ## 三、最常见的保存方式：`state_dict()`
 
 在 PyTorch 中，最推荐的保存方式通常不是直接保存整个模型对象，而是保存它的 `state_dict()`。
@@ -122,6 +125,7 @@ torch.save(model.state_dict(), "simple_mlp_weights.pth")
 
 ---
 
+<a id="sec-4"></a>
 ## 四、保存整个 checkpoint：模型 + 优化器 + 训练状态
 
 如果你希望以后不仅能加载模型，还能**从上一次训练中继续跑**，那么通常会保存一个 checkpoint。
@@ -191,6 +195,7 @@ torch.save(checkpoint, "checkpoint.pth")
 
 ---
 
+<a id="sec-5"></a>
 ## 五、加载模型参数：`load_state_dict()`
 
 加载模型时，一般流程是：
@@ -232,6 +237,7 @@ model.eval()
 
 ---
 
+<a id="sec-6"></a>
 ## 六、断点恢复训练：从 checkpoint 继续跑
 
 如果你要从中断处继续训练，通常要恢复：
@@ -282,6 +288,7 @@ print("从第", start_epoch, "轮继续训练")
 
 ---
 
+<a id="sec-7"></a>
 ## 七、保存和加载到不同设备（CPU / GPU）
 
 PyTorch 支持把模型从 GPU 保存，再在 CPU 上加载，或者反过来。
@@ -311,6 +318,7 @@ checkpoint = torch.load("checkpoint.pth", map_location=device)
 
 ---
 
+<a id="sec-8"></a>
 ## 八、保存自定义模型时的注意事项
 
 ### 1. 尽量保存 `state_dict()`，不要轻易直接保存整个模型对象
@@ -374,6 +382,7 @@ torch.save(model.state_dict(), "model_weights.pth")
 
 ---
 
+<a id="sec-9"></a>
 ## 九、一个完整可运行的示例
 
 下面我们做一个最小的“训练 → 保存 → 加载 → 推理”流程。
@@ -444,6 +453,7 @@ with torch.no_grad():
 
 ---
 
+<a id="sec-10"></a>
 ## 十、保存和加载时常见错误
 
 ### 1. 模型结构不一致
@@ -468,6 +478,7 @@ with torch.no_grad():
 
 ---
 
+<a id="sec-11"></a>
 ## 十一、练习题：巩固模型保存与加载
 
 ### 练习 1：保存模型参数
@@ -498,6 +509,7 @@ with torch.no_grad():
 
 ---
 
+<a id="sec-12"></a>
 ## ✅ 参考答案
 
 <details>
@@ -621,6 +633,7 @@ print("恢复到 epoch:", checkpoint["epoch"])
 
 ---
 
+<a id="sec-13"></a>
 ## 🌈 小结
 
 这一节最重要的是理解：

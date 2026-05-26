@@ -13,23 +13,24 @@
 
 ## 📚 目录
 
-- 一、为什么 GPU 能加速训练？
-- 二、PyTorch 中的设备是什么？
-- 三、如何判断当前是否有 GPU 可用？
-- 四、把模型和数据搬到 GPU 上
-- 五、一个完整的 CPU / GPU 通用训练示例
-- 六、`to(device)`、`cuda()`、`cpu()` 的区别
-- 七、为什么要减少 CPU 和 GPU 之间的数据传输？
-- 八、`pin_memory=True` 与 `non_blocking=True`
-- 九、混合精度（AMP）与 GPU 加速
-- 十、如何查看 GPU 占用与训练是否真的更快？
-- 十一、常见错误和小提醒
-- 十二、练习题：巩固 GPU 训练优化
-- 参考答案
-- 小结
+- <a href="#sec-1">一、为什么 GPU 能加速训练？</a>
+- <a href="#sec-2">二、PyTorch 中的设备是什么？</a>
+- <a href="#sec-3">三、如何判断当前是否有 GPU 可用？</a>
+- <a href="#sec-4">四、把模型和数据搬到 GPU 上</a>
+- <a href="#sec-5">五、一个完整的 CPU / GPU 通用训练示例</a>
+- <a href="#sec-6">六、`to(device)`、`cuda()`、`cpu()` 的区别</a>
+- <a href="#sec-7">七、为什么要减少 CPU 和 GPU 之间的数据传输？</a>
+- <a href="#sec-8">八、`pin_memory=True` 与 `non_blocking=True`</a>
+- <a href="#sec-9">九、混合精度（AMP）与 GPU 加速</a>
+- <a href="#sec-10">十、如何查看 GPU 占用与训练是否真的更快？</a>
+- <a href="#sec-11">十一、常见错误和小提醒</a>
+- <a href="#sec-12">十二、练习题：巩固 GPU 训练优化</a>
+- <a href="#sec-13">参考答案</a>
+- <a href="#sec-14">小结</a>
 
 ---
 
+<a id="sec-1"></a>
 ## 一、为什么 GPU 能加速训练？
 
 GPU 之所以适合深度学习，最重要的原因是：
@@ -52,7 +53,8 @@ GPU 在这种场景里比 CPU 更有优势。
 
 ---
 
-## 二、PyTorch 中的设备（device）是什么？
+<a id="sec-2"></a>
+## 二、PyTorch 中的设备是什么？
 
 在 PyTorch 里，`device` 表示张量或模型所在的计算设备。
 
@@ -74,6 +76,7 @@ print(x.device)
 
 ---
 
+<a id="sec-3"></a>
 ## 三、如何判断当前是否有 GPU 可用？
 
 在写代码时，第一步通常是检查 GPU 是否可用：
@@ -94,6 +97,7 @@ print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else "No GPU")
 
 ---
 
+<a id="sec-4"></a>
 ## 四、把模型和数据搬到 GPU 上
 
 GPU 加速的关键，不只是“有 GPU”，而是**模型和数据都必须在同一个设备上**。
@@ -138,6 +142,7 @@ model = model.to(device)
 
 ---
 
+<a id="sec-5"></a>
 ## 五、一个完整的 CPU / GPU 通用训练示例
 
 下面给出一个可以在 CPU 或 GPU 上运行的完整训练例子。
@@ -197,6 +202,7 @@ for epoch in range(3):
 
 ---
 
+<a id="sec-6"></a>
 ## 六、`to(device)`、`cuda()`、`cpu()` 的区别
 
 ### 1. `to(device)`
@@ -231,6 +237,7 @@ for epoch in range(3):
 
 ---
 
+<a id="sec-7"></a>
 ## 七、为什么要减少 CPU 和 GPU 之间的数据传输？
 
 GPU 很快，但如果数据总是在 CPU 和 GPU 之间来回搬运，速度会被拖慢。
@@ -248,6 +255,7 @@ GPU 很快，但如果数据总是在 CPU 和 GPU 之间来回搬运，速度会
 
 ---
 
+<a id="sec-8"></a>
 ## 八、`pin_memory=True` 与 `non_blocking=True`
 
 这两个参数常常一起出现在 GPU 训练优化里。
@@ -277,6 +285,7 @@ GPU 很快，但如果数据总是在 CPU 和 GPU 之间来回搬运，速度会
 
 ---
 
+<a id="sec-9"></a>
 ## 九、混合精度（AMP）与 GPU 加速
 
 AMP 是现代 GPU 训练里非常常见的加速方法。
@@ -320,6 +329,7 @@ scaler.update()
 
 ---
 
+<a id="sec-10"></a>
 ## 十、如何查看 GPU 占用与训练是否真的更快？
 
 GPU 优化不是“感觉快”，而是要能观察到证据。
@@ -353,6 +363,7 @@ nvidia-smi
 
 ---
 
+<a id="sec-11"></a>
 ## 十一、常见错误和小提醒
 
 ### 1. 模型在 GPU，数据还在 CPU
@@ -372,6 +383,7 @@ nvidia-smi
 
 ---
 
+<a id="sec-12"></a>
 ## 十二、练习题：巩固 GPU 训练优化
 
 ### 练习 1：检查 GPU 可用性
@@ -402,6 +414,7 @@ nvidia-smi
 
 ---
 
+<a id="sec-13"></a>
 ## ✅ 参考答案
 
 <details>
@@ -480,6 +493,7 @@ scaler.update()
 
 ---
 
+<a id="sec-14"></a>
 ## 🌈 小结
 
 这一节最重要的是理解：
