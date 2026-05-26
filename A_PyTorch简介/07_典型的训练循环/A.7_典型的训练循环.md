@@ -2,7 +2,38 @@
 
 下面的文档目标是：把 PyTorch 中训练模型所需的**全流程**与**细节要点**讲清楚、讲透，并给出可直接运行的示例与练习题。
 
-执行清单（我将在文档中覆盖这些内容）：
+> **阅读建议：**
+> 如果你已经会写一个最简单的训练循环，可以直接先看“完整训练/验证函数”和“关键细节与常见陷阱”；如果你想系统学习，建议从头顺着看下去。
+
+## 📚 快速导航
+
+- [一、训练循环的核心步骤（一句话版）](#一训练循环的核心步骤一句话版)
+- [二、完整训练/验证函数（简单版，可直接运行）](#二完整训练验证函数简单版可直接运行)
+- [三、关键细节与常见陷阱](#三关键细节与常见陷阱)
+- [四、混合精度（AMP）训练示例](#四混合精度amp训练示例)
+- [五、多 GPU 训练（简要）](#五多-gpu-训练简要)
+- [六、诊断与性能分析](#六诊断与性能分析)
+- [七、进阶技巧（速查）](#七进阶技巧速查)
+- [八、练习题（动手实践）](#八练习题动手实践)
+- [九、小结（要牢记的 10 点）](#九小结要牢记的-10-点)
+
+## 🧭 本节速览
+
+| 关键词 | 作用 | 你什么时候会用到 |
+|---|---|---|
+| `DataLoader` | 按批加载数据 | 几乎所有训练任务 |
+| `model.train()` | 切换到训练模式 | 开始训练前 |
+| `model.eval()` | 切换到评估模式 | 验证、测试、推理 |
+| `torch.no_grad()` | 关闭梯度跟踪 | 验证/推理阶段 |
+| `loss.backward()` | 反向传播 | 每个训练 batch |
+| `optimizer.step()` | 更新参数 | 每个训练 batch |
+| `scheduler.step()` | 调整学习率 | 按 epoch 或按 step |
+| AMP | 混合精度训练 | GPU 训练加速 |
+| `checkpoint` | 保存训练状态 | 断点恢复、继续训练 |
+
+---
+
+执行清单（本节会覆盖这些内容）：
 
 - [x] 训练循环的核心步骤与伪代码
 - [x] 完整可运行的训练/验证函数示例
@@ -29,6 +60,9 @@
 6. 更新参数（optimizer.step()）并清空梯度（optimizer.zero_grad()）
 7. （可选）更新学习率（scheduler.step()）
 
+> **你可以把它记成一个固定模板：**
+> **取数据 → 送设备 → 前向 → 算损失 → 反向 → 更新参数 → 清梯度 → 记录日志**
+
 伪代码：
 
 ```text
@@ -47,6 +81,17 @@ for epoch in range(num_epochs):
 ## 二、完整训练/验证函数（简单版，可直接运行）
 
 下面的示例演示一个小型训练循环（CPU/GPU 自动选择），适用于分类任务：
+
+### 代码结构说明
+
+在真正看代码前，先记住这几个角色：
+
+- `SimpleModel`：模型本体
+- `train_one_epoch()`：训练一个 epoch
+- `evaluate()`：在验证集上评估
+- `DataLoader`：负责按 batch 提供数据
+- `CrossEntropyLoss`：负责计算分类损失
+- `SGD`：负责参数更新
 
 ```python
 import torch
@@ -122,6 +167,13 @@ if __name__ == '__main__':
 		print(f'epoch {epoch}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc:.3f}')
 ```
 
+### 运行时你应该观察什么？
+
+- `train_loss` 是否逐渐下降
+- `val_loss` 是否同步下降或者至少不明显恶化
+- `val_acc` 是否逐步上升
+- 是否存在过拟合：训练集越来越好，验证集反而变差
+
 ---
 
 ## 三、关键细节与常见陷阱
@@ -136,6 +188,8 @@ if __name__ == '__main__':
    - 在每次反向传播前清空上一次累计的梯度
    - 推荐用 `optimizer.zero_grad()` 而不是 `for p in model.parameters(): p.grad = None`（两者各有优缺点，PyTorch 新版推荐 None 来减少内存开销）
 
+   - 如果你追求更现代的写法，也可以了解 `optimizer.zero_grad(set_to_none=True)`，它能在某些情况下减少内存开销并加快训练。
+
 3. loss.backward() 和 torch.autograd.grad：
    - `loss.backward()` 会把梯度累加到叶子张量的 `.grad`
    - `torch.autograd.grad()` 可以计算指定标量相对于某些张量的梯度，并返回它们，不会把结果保存到 `.grad`（除非需要）
@@ -147,6 +201,15 @@ if __name__ == '__main__':
    - 当 batch 太大导致内存不足时，可以用小 batch 累积多次梯度再 step，例如：
 
 ```python
+import torch
+
+# 下面这些对象在真实训练脚本里通常已经在上文定义好了；这里给出一个自包含的示意环境。
+device = torch.device('cpu')
+model = torch.nn.Linear(1, 1)
+optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+criterion = torch.nn.MSELoss()
+loader = [(torch.randn(2, 1), torch.randn(2, 1))]
+
 accum_steps = 4
 optimizer.zero_grad()
 for i, (x,y) in enumerate(loader):
@@ -162,6 +225,9 @@ for i, (x,y) in enumerate(loader):
    - 防止梯度爆炸，常用于 RNN / 长序列训练：
 
 ```python
+import torch
+
+model = torch.nn.Linear(1, 1)
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 ```
 
@@ -193,6 +259,16 @@ if torch.cuda.is_available():
 10. 保存/加载 checkpoint：
 
 ```python
+import torch
+
+# checkpoint 示例需要的最小上下文
+epoch = 0
+device = torch.device('cpu')
+model = torch.nn.Linear(1, 1)
+optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
+scaler = torch.cuda.amp.GradScaler(enabled=False)
+
 # 保存
 torch.save({
 	'epoch': epoch,
@@ -219,9 +295,33 @@ start_epoch = ckpt.get('epoch', 0) + 1
 
 使用 AMP 能在不牺牲精度的情况下加速训练并节省显存。下面给出一个典型模式：
 
+### 典型执行顺序
+
+1. `autocast()` 让部分算子自动使用更低精度
+2. `scaler.scale(loss).backward()` 对损失做缩放，减少梯度下溢风险
+3. `scaler.step(optimizer)` 执行优化器更新
+4. `scaler.update()` 动态调整缩放因子
+
 ```python
 import torch
+import torch.nn as nn
 from torch.cuda.amp import autocast, GradScaler
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+class SimpleModel(nn.Module):
+	def __init__(self, in_dim, out_dim):
+		super().__init__()
+		self.net = nn.Sequential(
+			nn.Linear(in_dim, 64),
+			nn.ReLU(),
+			nn.Linear(64, out_dim)
+		)
+	def forward(self, x):
+		return self.net(x)
+
+epochs = 1
+train_loader = [(torch.randn(2, 20), torch.randint(0, 3, (2,)))]
 
 model = SimpleModel(20, 3).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -246,6 +346,9 @@ for epoch in range(epochs):
 
 注意：AMP 只在 CUDA 可用时有意义。
 
+> **视觉提示：**
+> 如果你的机器没有 GPU，这一段可以先理解流程；如果有 GPU，建议你实际跑一遍，感受显存和速度差异。
+
 ---
 
 ## 五、多 GPU 训练（简要）
@@ -260,6 +363,10 @@ for epoch in range(epochs):
    - 更高效、扩展性好
 
 这里只给出概念，DDP 的完整示例需要较多 boilerplate，推荐参考官方教程
+
+> **排版小提示：**
+> 如果你后面想把这一节扩成正式教程，建议单独拆成：
+> `单卡训练`、`DataParallel`、`DistributedDataParallel` 三个小节，这样会更清晰。
 
 ---
 
@@ -279,6 +386,16 @@ for epoch in range(epochs):
 - 把数据从磁盘预处理到 LMDB / Memmap / HDF5 加速读取
 - 使用 `WeightedRandomSampler` 处理类别不平衡
 - 在训练中使用 `scheduler.step(metric)` 的早停策略
+
+### 什么时候该优先考虑这些技巧？
+
+| 场景 | 建议 |
+|---|---|
+| 显存不足 | AMP、梯度累积、checkpointing |
+| 训练太慢 | 增大 batch、优化 DataLoader、AMP |
+| 类别不平衡 | `WeightedRandomSampler` |
+| 验证集波动大 | 早停、学习率调度 |
+| I/O 成瓶颈 | `num_workers`、`pin_memory`、预处理 |
 
 ---
 
@@ -324,6 +441,15 @@ for epoch in range(epochs):
 示例：
 
 ```python
+import torch
+
+# 下面示例默认相关对象已经定义，这里补一组最小占位，方便单独阅读。
+device = torch.device('cpu')
+model = torch.nn.Linear(1, 1)
+optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+criterion = torch.nn.MSELoss()
+loader = [(torch.randn(2, 1), torch.randn(2, 1))]
+
 accum_steps = 4
 optimizer.zero_grad()
 for i, (x,y) in enumerate(loader):
@@ -355,5 +481,17 @@ for i, (x,y) in enumerate(loader):
 10. 写小脚本快速验证训练逻辑，再放大规模训练
 
 祝你训练顺利！如果需要，我可以把这些示例自动抽成 `examples/` 下的可运行脚本，并生成一个小 README 指南，告诉你如何在 CPU/GPU 上运行它们。
+
+---
+
+## ✨ 额外阅读建议
+
+如果你想继续把训练循环学得更扎实，可以按这个顺序继续补：
+
+1. `A.6_设置高效的数据加载器.md`：先把数据喂进模型的方式彻底搞懂
+2. `A.5_实现多层神经网络.md`：再看模型是怎么搭起来的
+3. `A.4_轻松实现自动微分.md`：理解梯度为什么能被算出来
+4. 回到本节：把完整训练循环串起来理解
+
 
 
