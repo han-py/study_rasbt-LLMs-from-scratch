@@ -1,180 +1,212 @@
-import torch
-from torch.utils.data import DataLoader
+# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
+# Source for "Build a Large Language Model From Scratch"
+#   - https://www.manning.com/books/build-a-large-language-model-from-scratch
+# Code: https://github.com/rasbt/LLMs-from-scratch
 
-class NeuralNetwork(torch.nn.Module):
-    def __init__(self, num_inputs, num_outputs): # 将输入和输出的数量编码为变量，使我们可以在具有不同特征数量和类别数量的数据集上重复相同的代码
-        super().__init__()
-
-        self.layers = torch.nn.Sequential(
-            # 第一个隐藏层
-            torch.nn.Linear(num_inputs, 30), # 线性层将输入结点和输出结点的数量作为参数
-            torch.nn.ReLU(), # 非线性激活函数被放置在隐藏层之间
-
-            # 第二个隐藏层
-            torch.nn.Linear(30, 20), # 下一个隐藏层的输出节点数量必须与下一层的输入节点数量相匹配
-            torch.nn.ReLU(),
-
-            # 输出层
-            torch.nn.Linear(20, num_outputs)
-        )
-
-    def forward(self, x):
-        logits = self.layers(x)
-        return logits # 最后一层的输出称为 logits
-
-from torch.utils.data import Dataset
+# Appendix A: Introduction to PyTorch (Part 3)
 
 import torch
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
 
-x_train = torch.tensor([
-    [-1.2, 3.1],
-    [-0.9, 2.9],
-    [-0.5, 2.6],
-    [2.3, -1.1],
-    [2.7, -1.5],
-])
-y_train = torch.tensor([0, 0, 0, 1, 1])
+# NEW imports:
+import os
+import platform
+import torch.multiprocessing as mp
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 
-x_test = torch.tensor([
-    [-0.8, 2.8],
-    [2.6, -1.6],
-])
-y_test = torch.tensor([0, 1])
+
+# NEW: function to initialize a distributed process group (1 process / GPU)
+# this allows communication among processes
+def ddp_setup(rank, world_size):
+    """
+    Arguments:
+        rank: a unique process ID
+        world_size: total number of processes in the group
+    """
+    # rank of machine running rank:0 process
+    # here, we assume all GPUs are on the same machine
+    os.environ["MASTER_ADDR"] = "localhost"
+    # any free port on the machine
+    os.environ["MASTER_PORT"] = "12345"
+
+    # initialize process group
+    if platform.system() == "Windows":
+        # Disable libuv because PyTorch for Windows isn't built with support
+        os.environ["USE_LIBUV"] = "0"
+        # Windows users may have to use "gloo" instead of "nccl" as backend
+        # gloo: Facebook Collective Communication Library
+        init_process_group(backend="gloo", rank=rank, world_size=world_size)
+    else:
+        # nccl: NVIDIA Collective Communication Library
+        init_process_group(backend="nccl", rank=rank, world_size=world_size)
+
+    torch.cuda.set_device(rank)
+
 
 class ToyDataset(Dataset):
-    def __init__(self, x, y):
-        self.features = x
+    def __init__(self, X, y):
+        self.features = X
         self.labels = y
 
-    # 检索一条数据记录及其对应标签的说明
     def __getitem__(self, index):
         one_x = self.features[index]
         one_y = self.labels[index]
         return one_x, one_y
 
     def __len__(self):
-        return self.labels.shape[0] # 返回数据集总长度的说明
+        return self.labels.shape[0]
 
-train_ids = ToyDataset(x_train, y_train)
-test_ids = ToyDataset(x_test, y_test)
 
-train_loader = DataLoader(
-    dataset=train_ids,
-    batch_size=2,
-    shuffle=True,
-    num_workers=0,
-    drop_last=True, # 丢弃最后一个批次的数据
-)
+class NeuralNetwork(torch.nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
 
-test_loader = DataLoader(
-    dataset=test_ids,
-    batch_size=2,
-    shuffle=False, # 测试数据不需要打乱
-    num_workers=0,
-)
+        self.layers = torch.nn.Sequential(
+            # 1st hidden layer
+            torch.nn.Linear(num_inputs, 30),
+            torch.nn.ReLU(),
 
-torch.manual_seed(123)
-model = NeuralNetwork(num_inputs=2, num_outputs=2)
+            # 2nd hidden layer
+            torch.nn.Linear(30, 20),
+            torch.nn.ReLU(),
 
-device =torch.device("cuda") #定义一个默认使用 GPU 的设备变量
-model = model.to(device) # 将模型移动到 GPU 上
+            # output layer
+            torch.nn.Linear(20, num_outputs),
+        )
 
-optimizer = torch.optim.SGD(model.parameters(), lr=0.5)
+    def forward(self, x):
+        logits = self.layers(x)
+        return logits
 
-num_epochs = 3
-
-for epoch in range(num_epochs):
-
-    model.train()
-    for batch_idx, (features, labels) in enumerate(train_loader):
-        features, labels = features.to(device), labels.to(device) # 将数据转移到  GPU 上
-        logits = model(features)
-        loss = torch.nn.functional.cross_entropy(logits, labels) # Loss fuction
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        ### LOGGING
-        print(f"Epoch {epoch + 1: 03d}/{num_epochs: 03d}"
-              f" | Batch {batch_idx: 03d}/{len(train_loader): 03d}"
-              f" | Train Loss: {loss:.2f}")
-
-    model.eval()
-    # 插入可选的模型评估代码
-
-import torch.multiprocessing as mp
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
-
-def compute_accuracy(model, dataloader):
-
-    model.eval()
-    correct = 0.0
-    total_examples = 0
-
-    for idx, (features, labels) in enumerate(dataloader):
-
-        with torch.no_grad():
-            logits = model(features)
-
-        predictions = torch.argmax(logits, dim=1)
-        compare = labels == predictions # 根据标签是否匹配，返回一个 True/False 值的张量
-        correct += torch.sum(compare) # 求和操作计算 True 值的数量
-        total_examples += len(compare)
-
-    return (correct / total_examples).item() # 正确预测的比例是一个介于 0 和 1 之间的值。调用 .item() 会将张量的值以 Python 浮点数的形式返回
-
-import os
-import torch
-
-def ddp_setup(rank, world_size):
-    os.environ["MASTER_ADDR"] = "localhost" # 主节点的地址
-    os.environ["MASTER_PORT"] = "12345" # 机器上的任何空闲端口
-    init_process_group(
-        backend="nccl", # nccl 代表NVIDIA集体通信库
-        rank=rank, # rank 指的是我们想要使用的GPU 的索引
-        world_size=world_size # world_size是要使用的GPU 数量
-    )
-    torch.cuda.set_device(rank) # 设置当前的GPU 设备，以便在其上分配张量并执行操作
 
 def prepare_dataset():
-    # 插入数据集准备代码
+    X_train = torch.tensor([
+        [-1.2, 3.1],
+        [-0.9, 2.9],
+        [-0.5, 2.6],
+        [2.3, -1.1],
+        [2.7, -1.5]
+    ])
+    y_train = torch.tensor([0, 0, 0, 1, 1])
+
+    X_test = torch.tensor([
+        [-0.8, 2.8],
+        [2.6, -1.6],
+    ])
+    y_test = torch.tensor([0, 1])
+
+    # Uncomment these lines to increase the dataset size to run this script on up to 8 GPUs:
+    # factor = 4
+    # X_train = torch.cat([X_train + torch.randn_like(X_train) * 0.1 for _ in range(factor)])
+    # y_train = y_train.repeat(factor)
+    # X_test = torch.cat([X_test + torch.randn_like(X_test) * 0.1 for _ in range(factor)])
+    # y_test = y_test.repeat(factor)
+
+    train_ds = ToyDataset(X_train, y_train)
+    test_ds = ToyDataset(X_test, y_test)
+
     train_loader = DataLoader(
-    dataset=train_ids,
-    batch_size=2,
-    shuffle=False, # DistributedSampler 现在负责打乱数据
-    pin_memory=True, # 在 GPU 上训练时启用更快的内存传输
-    drop_last=True,
-    sampler=DistributedSampler(train_ids) # 将数据集分割成不同且不重叠的子集，以供每个进程（GPU）使用
+        dataset=train_ds,
+        batch_size=2,
+        shuffle=False,  # NEW: False because of DistributedSampler below
+        pin_memory=True,
+        drop_last=True,
+        # NEW: chunk batches across GPUs without overlapping samples:
+        sampler=DistributedSampler(train_ds)  # NEW
+    )
+    test_loader = DataLoader(
+        dataset=test_ds,
+        batch_size=2,
+        shuffle=False,
     )
     return train_loader, test_loader
 
-def main(rank, world_size, num_epochs): # 运行模型训练的主函数
-    ddp_setup(rank, world_size)
+
+# NEW: wrapper
+def main(rank, world_size, num_epochs):
+
+    ddp_setup(rank, world_size)  # NEW: initialize process groups
+
     train_loader, test_loader = prepare_dataset()
     model = NeuralNetwork(num_inputs=2, num_outputs=2)
     model.to(rank)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.5)
-    model = DDP(model, device_ids=[rank])
+
+    model = DDP(model, device_ids=[rank])  # NEW: wrap model with DDP
+    # the core model is now accessible as model.module
+
     for epoch in range(num_epochs):
+        # NEW: Set sampler to ensure each epoch has a different shuffle order
+        train_loader.sampler.set_epoch(epoch)
+
+        model.train()
         for features, labels in train_loader:
-            features, labels = features.to(rank), labels.to(rank) # rank 是 GPU 的 ID
-            # 插入模型预测和反向传播代码
+
+            features, labels = features.to(rank), labels.to(rank)  # New: use rank
+            logits = model(features)
+            loss = F.cross_entropy(logits, labels)  # Loss function
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            # LOGGING
             print(f"[GPU{rank}] Epoch: {epoch+1:03d}/{num_epochs:03d}"
-                f" | Batchsize {labels.shape[0]:03d}"
-                f" | Train/Val Loss: {loss:.2f}")
+                  f" | Batchsize {labels.shape[0]:03d}"
+                  f" | Train/Val Loss: {loss:.2f}")
+
     model.eval()
-    train_acc = compute_accuracy(model, train_loader, device=rank)
-    print(f"[GPU{rank}] Training accuracy", train_acc)
-    test_acc = compute_accuracy(model, test_loader, device=rank)
-    print(f"[GPU{rank}] Test accuracy", test_acc)
-    destroy_process_group() # 清理资源分配
+
+    try:
+        train_acc = compute_accuracy(model, train_loader, device=rank)
+        print(f"[GPU{rank}] Training accuracy", train_acc)
+        test_acc = compute_accuracy(model, test_loader, device=rank)
+        print(f"[GPU{rank}] Test accuracy", test_acc)
+
+    ####################################################
+    # NEW (not in the book):
+    except ZeroDivisionError as e:
+        raise ZeroDivisionError(
+            f"{e}\n\nThis script is designed for 2 GPUs. You can run it as:\n"
+            "CUDA_VISIBLE_DEVICES=0,1 python DDP-script.py\n"
+            f"Or, to run it on {torch.cuda.device_count()} GPUs, uncomment the code on lines 103 to 107."
+        )
+    ####################################################
+
+    destroy_process_group()  # NEW: cleanly exit distributed mode
+
+
+def compute_accuracy(model, dataloader, device):
+    model = model.eval()
+    correct = 0.0
+    total_examples = 0
+
+    for idx, (features, labels) in enumerate(dataloader):
+        features, labels = features.to(device), labels.to(device)
+
+        with torch.no_grad():
+            logits = model(features)
+        predictions = torch.argmax(logits, dim=1)
+        compare = labels == predictions
+        correct += torch.sum(compare)
+        total_examples += len(compare)
+    return (correct / total_examples).item()
+
 
 if __name__ == "__main__":
+    # This script may not work for GPUs > 2 due to the small dataset
+    # Run `CUDA_VISIBLE_DEVICES=0,1 python DDP-script.py` if you have GPUs > 2
+    print("PyTorch version:", torch.__version__)
+    print("CUDA available:", torch.cuda.is_available())
     print("Number of GPUs available:", torch.cuda.device_count())
     torch.manual_seed(123)
+
+    # NEW: spawn new processes
+    # note that spawn will automatically pass the rank
     num_epochs = 3
     world_size = torch.cuda.device_count()
-    mp.spawn(main, args=(world_size, num_epochs), nprocs=world_size) # 使用多个进程启动主函数，其中 nprocs=world_size 意味着每个 GPU 一个进程
+    mp.spawn(main, args=(world_size, num_epochs), nprocs=world_size)
+    # nprocs=world_size spawns one process per GPU
