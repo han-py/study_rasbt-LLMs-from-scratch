@@ -27,6 +27,7 @@
 - <a href="#sec-12">十二、练习题：巩固 GPU 训练优化</a>
 - <a href="#sec-13">参考答案</a>
 - <a href="#sec-14">小结</a>
+ - <a href="#sec-15">十五、多 GPU 训练（DistributedDataParallel / DDP）</a>
 
 ---
 
@@ -491,6 +492,69 @@ scaler.update()
 
 </details>
 
+---
+
+---
+
+<a id="sec-15"></a>
+## 十五、多 GPU 训练（DistributedDataParallel / DDP）
+
+当系统中有多块 GPU 时，推荐使用 PyTorch 的 DistributedDataParallel（DDP）来进行并行训练。下面是 DDP 示例脚本的要点说明、运行建议和常见错误排查方法。
+
+核心要点：
+
+- 使用 `torch.multiprocessing.spawn` 为每张 GPU 启动一个独立进程（每个进程绑定到一个 GPU）。
+- 使用 `DistributedSampler` 在不同进程间划分训练数据，避免样本重叠；并在每个 epoch 调用 `sampler.set_epoch(epoch)` 保证 shuffle 不同步。
+- 在每个进程中，把模型和该进程对应的 batch 数据移动到进程所绑定的 GPU（`rank`）上，然后将模型封装为 `DDP(model, device_ids=[rank])`。
+- 在 Linux 上使用 `nccl` 后端，Windows 上可用 `gloo`（示例脚本根据平台自动选择）。
+
+典型运行方式（在终端里执行脚本）：
+
+Linux / macOS:
+```bash
+CUDA_VISIBLE_DEVICES=0,1 python ddp_script.py
+```
+
+Windows (PowerShell):
+```powershell
+$env:CUDA_VISIBLE_DEVICES="0,1"; python ddp_script.py
+```
+
+常见错误与排查（针对 ProcessExitedException）：
+
+1. ProcessExitedException: process 0 terminated with exit code 1
+   - 原因：子进程启动失败或抛出异常；当在交互式环境（Jupyter/Notebook）中运行 mp.spawn 时常见。
+   - 解决：把 DDP 代码保存为独立脚本（例如 `ddp_script.py`），在终端运行，并在文件中添加 `if __name__ == "__main__":` 保护入口。子进程在脚本模式下会打印出完整的 tracebacks，便于定位问题。
+
+2. world_size 为 0 或没有可用 GPU
+   - 检查 `torch.cuda.device_count()`；在没有 GPU 时，先退回单进程或在 CPU 上运行测试。
+
+3. Backend/port/permission 问题
+   - 在 Linux 上使用 `nccl`；确保 `MASTER_PORT` 未被占用；必要时换一个端口。
+   - Windows 上将 backend 设置为 `gloo`，并可在环境中设置 `USE_LIBUV=0`（见示例）。
+
+4. 数据分片后某些进程没有 batch（ZeroDivisionError）
+   - 小数据集在多 GPU 下可能导致某些进程无数据。扩大数据集或在小 GPU 数量下使用 DDP。
+
+调试建议：
+
+- 先在单进程单 GPU（或 CPU）下确保训练代码能跑通，再迁移到 DDP。  
+- 在每个进程中打印带 rank 的日志，例如 `print(f"[rank {rank}] ...")`，或将日志写入不同文件以便排查。  
+- 确保脚本入口使用 `if __name__ == '__main__':`，并用 `mp.spawn` 启动。
+
+代码回退例子（当没有多 GPU 时降级为单进程运行）：
+
+```py
+if __name__ == '__main__':
+	torch.manual_seed(123)
+	num_epochs = 3
+	world_size = max(1, torch.cuda.device_count())
+	if world_size > 1:
+		mp.spawn(main, args=(world_size, num_epochs), nprocs=world_size)
+	else:
+		# fallback to single-process (rank=0) for environments without multiple GPUs
+		main(rank=0, world_size=1, num_epochs=num_epochs)
+```
 ---
 
 <a id="sec-14"></a>
