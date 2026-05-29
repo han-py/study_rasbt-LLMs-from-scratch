@@ -103,6 +103,62 @@ print(dataset[0])
 (tensor([1.]), tensor([2.]))
 ```
 
+### 结合 notebook 里的 `ToyDataset` 再理解一次
+
+在你的代码清单 A-6 中，我们不是直接用 `TensorDataset`，而是自己定义了一个 `ToyDataset`：
+
+```python
+from torch.utils.data import Dataset
+
+class ToyDataset(Dataset):
+	def __init__(self, x, y):
+		self.features = x
+		self.labels = y
+
+	def __getitem__(self, index):
+		one_x = self.features[index]
+		one_y = self.labels[index]
+		return one_x, one_y
+
+	def __len__(self):
+		return self.labels.shape[0]
+```
+
+这个类和 `TensorDataset` 做的事情很像，但它更灵活：
+
+- `self.features = x`：把输入特征保存起来
+- `self.labels = y`：把标签保存起来
+- `__getitem__(index)`：告诉 PyTorch“给我第 `index` 条样本时，要返回什么”
+- `__len__()`：告诉 PyTorch“这个数据集总共有多少条样本”
+
+在你的示例里：
+
+```python
+x_train = torch.tensor([
+	[-1.2, 3.1],
+	[-0.9, 2.9],
+	[-0.5, 2.6],
+	[2.3, -1.1],
+	[2.7, -1.5],
+])
+y_train = torch.tensor([0, 0, 0, 1, 1])
+```
+
+这表示训练集有 5 条样本，每条样本有 2 个特征。`ToyDataset(x_train, y_train)` 之后，`train_ids[0]` 会得到：
+
+```python
+(tensor([-1.2000,  3.1000]), tensor(0))
+```
+
+同样地：
+
+```python
+train_ids = ToyDataset(x_train, y_train)
+test_ids = ToyDataset(x_test, y_test)
+```
+
+就是分别构造训练集和测试集的 Dataset 对象。
+
 ---
 
 ## 🌟 四、DataLoader 的基本用法
@@ -130,6 +186,45 @@ for batch_x, batch_y in loader:
 
 1. 第一批：`[[1.0], [2.0]]`
 2. 第二批：`[[3.0], [4.0]]`
+
+### 对应到 notebook 里的 `train_loader` / `test_loader`
+
+你的代码清单 A-7 是这样写的：
+
+```python
+torch.manual_seed(123)
+
+train_loader = DataLoader(
+	dataset=train_ids,
+	batch_size=2,
+	shuffle=True,
+	num_workers=0,
+)
+
+test_loader = DataLoader(
+	dataset=test_ids,
+	batch_size=2,
+	shuffle=False,
+	num_workers=0,
+)
+```
+
+这里有几个关键点：
+
+- `torch.manual_seed(123)`：设置随机种子，这样在教学环境里更容易复现 DataLoader 的随机打乱结果。
+- `dataset=train_ids`：告诉 DataLoader 从训练集里取样。
+- `shuffle=True`：训练集每轮都会打乱顺序，避免模型只记住样本排列顺序。
+- `shuffle=False`：测试集不需要打乱，因为我们只是评估模型效果。
+- `num_workers=0`：不使用额外子进程，最简单也最稳定，适合初学者和 Windows 环境。
+
+如果你运行：
+
+```python
+for idx, (x, y) in enumerate(train_loader):
+	print(f'Batch {idx+1}:', x, y)
+```
+
+你会看到训练集被分成若干个 batch 输出。由于 `shuffle=True`，每次运行的样本顺序可能不同；但在设置随机种子的情况下，教学示例通常会更稳定一些。
 
 ---
 
@@ -196,9 +291,35 @@ drop_last=True
 
 那么最后不完整的 batch 会被直接丢掉。
 
+### 对应到 notebook 里的 `A-8` 示例
+
+你在代码清单 A-8 中写了：
+
+```python
+train_loader = DataLoader(
+	dataset=train_ids,
+	batch_size=2,
+	shuffle=True,
+	num_workers=0,
+	drop_last=True,
+)
+```
+
+这里训练集一共有 5 条样本，而 `batch_size=2`：
+
+- 如果 **不** 使用 `drop_last=True`，会得到 3 个 batch：2、2、1
+- 如果使用 `drop_last=True`，最后那个只有 1 条样本的 batch 会被丢掉，最终只保留 2 个完整 batch：2、2
+
+这在某些训练设置里很重要，尤其当你希望每个 batch 大小完全一致时。
+
 ### 什么时候常用？
 - 某些训练策略要求 batch 大小完全一致
 - 多卡训练中有时希望 batch 尺寸固定
+
+### 你可以这样理解
+
+`drop_last=True` 就像“宁可少看一点，也不要让最后一盘菜只有半份”。
+对于普通单卡训练，它不是必须的；但对于需要严格 batch 形状的一些训练方式，它会更方便。
 
 ---
 
