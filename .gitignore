@@ -52,3 +52,11 @@
 /gpt2/1558M/encoder.json
 /gpt2/1558M/hparams.json
 /gpt2/1558M/model.ckpt.data-00000-of-00001
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/checkpoint
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/encoder.json
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/hparams.json
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/model.ckpt.data-00000-of-00001
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/model.ckpt.index
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/model.ckpt.meta
+/U5_在无标签数据上进行预训练/02_learning/model.pth
+/U5_在无标签数据上进行预训练/02_learning/gpt2/124M/vocab.bpe
