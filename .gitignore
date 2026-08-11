@@ -60,3 +60,8 @@
 /U5_在无标签数据上进行预训练/02_learning/gpt2/124M/model.ckpt.meta
 /U5_在无标签数据上进行预训练/02_learning/model.pth
 /U5_在无标签数据上进行预训练/02_learning/gpt2/124M/vocab.bpe
+/U6_针对分类的微调/02_learning/accuracy-plot.pdf
+/U6_针对分类的微调/02_learning/gpt_download.py
+/U6_针对分类的微调/02_learning/loss-plot.pdf
+/U6_针对分类的微调/02_learning/review_classifier.pth
+/U6_针对分类的微调/02_learning/gpt2/124M/vocab.bpe
