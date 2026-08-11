@@ -161,7 +161,7 @@ test_dataset = SpamDataset(
 )
 
 
-# 代码清单 6-5 在PyTorch 中船舰数据加载器
+# 代码清单 6-5 在PyTorch 中创建数据加载器
 from torch.utils.data import DataLoader
 
 num_workers = 0 # 此设置确保了与大多数计算机的兼容性
